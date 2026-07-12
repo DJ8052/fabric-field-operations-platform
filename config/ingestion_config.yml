@@ -1,0 +1,29 @@
+source:
+  source_system: open_meteo
+  endpoint_name: weather_forecast
+  base_url: https://api.open-meteo.com/v1/forecast
+
+request:
+  forecast_days: 7
+  timeformat: iso8601
+  temperature_unit: fahrenheit
+  wind_speed_unit: mph
+  precipitation_unit: inch
+
+  hourly_variables:
+    - temperature_2m
+    - relative_humidity_2m
+    - apparent_temperature
+    - precipitation
+    - weather_code
+    - wind_gusts_10m
+
+execution:
+  request_timeout_seconds: 30
+  max_retries: 3
+  retry_delay_seconds: 5
+
+bronze:
+  lakehouse_name: LH_FieldOps
+  root_path: Files/bronze/weather_forecast
+  path_pattern: location_id={location_id}/ingestion_date={ingestion_date}/run_{run_id}.json

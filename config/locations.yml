@@ -1,0 +1,21 @@
+locations:
+  - location_id: TX-DAL
+    location_name: Dallas
+    latitude: 32.7767
+    longitude: -96.7970
+    timezone: America/Chicago
+    active: true
+
+  - location_id: TX-HOU
+    location_name: Houston
+    latitude: 29.7604
+    longitude: -95.3698
+    timezone: America/Chicago
+    active: true
+
+  - location_id: TX-AUS
+    location_name: Austin
+    latitude: 30.2672
+    longitude: -97.7431
+    timezone: America/Chicago
+    active: true
