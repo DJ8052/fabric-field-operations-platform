@@ -1,4 +1,4 @@
-"""Unit tests for Bronze weather transformation utilities."""
+"""Unit tests for Bronze-to-Silver weather transformation utilities."""
 
 from __future__ import annotations
 
@@ -11,6 +11,13 @@ import pytest
 from weather_transformation.bronze_reader import (
     BronzeReadError,
     read_bronze_weather,
+)
+from weather_transformation.delta_writer import (
+    DEFAULT_SILVER_TABLE_NAME,
+    SILVER_MERGE_CONDITION,
+    SilverWriteError,
+    SilverWriteResult,
+    write_silver_weather,
 )
 from weather_transformation.transformer import (
     WeatherTransformationError,
@@ -26,7 +33,7 @@ from weather_transformation.validators import (
 
 
 # =============================================================================
-# SHARED TEST FIXTURES
+# SHARED FIXTURES AND TEST HELPERS
 # =============================================================================
 
 
@@ -93,11 +100,43 @@ def valid_bronze_record() -> dict:
     }
 
 
+@pytest.fixture
+def valid_silver_rows() -> list[dict]:
+    """Return two minimal transformed Silver records."""
+
+    return [
+        {
+            "pipeline_run_id": "test-run-001",
+            "location_id": "TX-DAL",
+            "forecast_timestamp_local": datetime(
+                2026,
+                7,
+                14,
+                0,
+                0,
+            ),
+            "temperature_2m": 80.1,
+        },
+        {
+            "pipeline_run_id": "test-run-001",
+            "location_id": "TX-DAL",
+            "forecast_timestamp_local": datetime(
+                2026,
+                7,
+                14,
+                1,
+                0,
+            ),
+            "temperature_2m": 79.5,
+        },
+    ]
+
+
 def _build_mock_spark(
     *,
     record_count: int = 1,
 ) -> tuple[MagicMock, MagicMock]:
-    """Return mocked SparkSession and DataFrame objects."""
+    """Return mocked SparkSession and DataFrame objects for Bronze reads."""
 
     spark = MagicMock()
     bronze_df = MagicMock()
@@ -107,6 +146,28 @@ def _build_mock_spark(
     bronze_df.count.return_value = record_count
 
     return spark, bronze_df
+
+
+def _build_mock_delta_writer_spark(
+    *,
+    table_exists: bool,
+    row_count: int = 2,
+) -> tuple[MagicMock, MagicMock]:
+    """Return mocked SparkSession and DataFrame objects for Delta writes."""
+
+    spark = MagicMock()
+    silver_df = MagicMock()
+
+    spark.createDataFrame.return_value = silver_df
+    silver_df.count.return_value = row_count
+    spark.catalog.tableExists.return_value = table_exists
+
+    silver_df.alias.return_value = silver_df
+
+    silver_df.write.format.return_value = silver_df.write
+    silver_df.write.mode.return_value = silver_df.write
+
+    return spark, silver_df
 
 
 # =============================================================================
@@ -140,7 +201,7 @@ def test_validate_required_fields_rejects_missing_hourly_field(
 def test_validate_hourly_array_alignment_returns_record_count(
     valid_bronze_record: dict,
 ) -> None:
-    """Aligned arrays should return their validated forecast-record count."""
+    """Aligned arrays should return their validated record count."""
 
     result = validate_hourly_array_alignment(valid_bronze_record)
 
@@ -165,7 +226,7 @@ def test_validate_hourly_array_alignment_rejects_misaligned_arrays(
 def test_validate_hourly_array_alignment_rejects_declared_count_mismatch(
     valid_bronze_record: dict,
 ) -> None:
-    """The declared record count must equal the actual hourly-array length."""
+    """The declared count must equal the actual array length."""
 
     invalid_record = deepcopy(valid_bronze_record)
     invalid_record["hourly_record_count"] = 168
@@ -180,7 +241,7 @@ def test_validate_hourly_array_alignment_rejects_declared_count_mismatch(
 def test_validate_bronze_record_rejects_empty_hourly_arrays(
     valid_bronze_record: dict,
 ) -> None:
-    """Bronze records with no hourly forecasts should fail validation."""
+    """Bronze records with no hourly forecasts should fail."""
 
     invalid_record = deepcopy(valid_bronze_record)
 
@@ -225,7 +286,7 @@ def test_read_bronze_weather_returns_dataframe() -> None:
 
 
 def test_read_bronze_weather_accepts_custom_path() -> None:
-    """The reader should support a caller-supplied Bronze root path."""
+    """The reader should support a custom Bronze path."""
 
     spark, _ = _build_mock_spark(record_count=2)
 
@@ -240,7 +301,7 @@ def test_read_bronze_weather_accepts_custom_path() -> None:
 
 
 def test_read_bronze_weather_trims_custom_path() -> None:
-    """Leading and trailing whitespace should be removed from the path."""
+    """Whitespace should be removed from a custom path."""
 
     spark, _ = _build_mock_spark(record_count=2)
 
@@ -255,7 +316,7 @@ def test_read_bronze_weather_trims_custom_path() -> None:
 
 
 def test_read_bronze_weather_rejects_blank_path() -> None:
-    """A blank Bronze root path should fail before Spark is called."""
+    """A blank Bronze path should fail before Spark is called."""
 
     spark, _ = _build_mock_spark()
 
@@ -272,7 +333,7 @@ def test_read_bronze_weather_rejects_blank_path() -> None:
 
 
 def test_read_bronze_weather_rejects_non_string_path() -> None:
-    """A non-string Bronze path should fail with a descriptive error."""
+    """A non-string Bronze path should fail clearly."""
 
     spark, _ = _build_mock_spark()
 
@@ -289,7 +350,7 @@ def test_read_bronze_weather_rejects_non_string_path() -> None:
 
 
 def test_read_bronze_weather_rejects_empty_dataset() -> None:
-    """A successfully read but empty Bronze dataset should fail."""
+    """An empty Bronze dataset should fail."""
 
     spark, _ = _build_mock_spark(record_count=0)
 
@@ -317,7 +378,7 @@ def test_read_bronze_weather_wraps_spark_read_error() -> None:
 
 
 def test_read_bronze_weather_wraps_count_error() -> None:
-    """DataFrame evaluation failures should be wrapped clearly."""
+    """DataFrame count failures should be wrapped clearly."""
 
     spark, bronze_df = _build_mock_spark()
     bronze_df.count.side_effect = RuntimeError(
@@ -339,7 +400,7 @@ def test_read_bronze_weather_wraps_count_error() -> None:
 def test_transform_bronze_record_returns_one_row_per_hour(
     valid_bronze_record: dict,
 ) -> None:
-    """Three aligned hourly values should produce three Silver rows."""
+    """Three forecast hours should produce three Silver rows."""
 
     result = transform_bronze_record(valid_bronze_record)
 
@@ -349,7 +410,7 @@ def test_transform_bronze_record_returns_one_row_per_hour(
 def test_transform_bronze_record_preserves_logical_key(
     valid_bronze_record: dict,
 ) -> None:
-    """Each row should preserve run, location, and forecast timestamp."""
+    """Each row should preserve its logical key values."""
 
     result = transform_bronze_record(valid_bronze_record)
 
@@ -370,7 +431,7 @@ def test_transform_bronze_record_preserves_logical_key(
 def test_transform_bronze_record_maps_hourly_values_by_position(
     valid_bronze_record: dict,
 ) -> None:
-    """Measurements at the same index should remain aligned."""
+    """Measurements sharing an array index should remain aligned."""
 
     result = transform_bronze_record(valid_bronze_record)
 
@@ -388,7 +449,7 @@ def test_transform_bronze_record_maps_hourly_values_by_position(
 def test_transform_bronze_record_preserves_metadata(
     valid_bronze_record: dict,
 ) -> None:
-    """Silver rows should retain lineage, location, units, and API metadata."""
+    """Silver rows should retain lineage and source metadata."""
 
     result = transform_bronze_record(valid_bronze_record)
 
@@ -416,7 +477,7 @@ def test_transform_bronze_record_preserves_metadata(
 def test_transform_bronze_record_parses_ingestion_timestamp(
     valid_bronze_record: dict,
 ) -> None:
-    """The UTC ingestion string should become a timezone-aware datetime."""
+    """The UTC ingestion string should become a datetime."""
 
     result = transform_bronze_record(valid_bronze_record)
 
@@ -455,7 +516,7 @@ def test_transform_bronze_record_accepts_zulu_timestamp(
 def test_transform_bronze_record_allows_nullable_measurements(
     valid_bronze_record: dict,
 ) -> None:
-    """Nullable Silver measurements should remain None when absent."""
+    """Nullable measurements should remain None."""
 
     record = deepcopy(valid_bronze_record)
 
@@ -473,7 +534,7 @@ def test_transform_bronze_record_allows_nullable_measurements(
 def test_transform_bronze_record_rejects_invalid_ingestion_timestamp(
     valid_bronze_record: dict,
 ) -> None:
-    """Invalid ingestion timestamps should fail with a clear message."""
+    """Invalid ingestion timestamps should fail clearly."""
 
     record = deepcopy(valid_bronze_record)
     record["ingestion_timestamp_utc"] = "not-a-timestamp"
@@ -488,7 +549,7 @@ def test_transform_bronze_record_rejects_invalid_ingestion_timestamp(
 def test_transform_bronze_record_rejects_invalid_forecast_timestamp(
     valid_bronze_record: dict,
 ) -> None:
-    """Invalid hourly forecast timestamps should fail transformation."""
+    """Invalid forecast timestamps should fail."""
 
     record = deepcopy(valid_bronze_record)
     record["payload"]["hourly"]["time"][1] = "invalid-hour"
@@ -503,7 +564,7 @@ def test_transform_bronze_record_rejects_invalid_forecast_timestamp(
 def test_transform_bronze_record_rejects_invalid_numeric_value(
     valid_bronze_record: dict,
 ) -> None:
-    """A nonnumeric weather measurement should fail conversion."""
+    """A nonnumeric measurement should fail conversion."""
 
     record = deepcopy(valid_bronze_record)
     record["payload"]["hourly"]["temperature_2m"][0] = "hot"
@@ -518,7 +579,7 @@ def test_transform_bronze_record_rejects_invalid_numeric_value(
 def test_transform_bronze_record_rejects_boolean_numeric_value(
     valid_bronze_record: dict,
 ) -> None:
-    """Boolean values should not be accepted as numeric measurements."""
+    """Boolean values should not be accepted as numeric values."""
 
     record = deepcopy(valid_bronze_record)
     record["payload"]["hourly"]["weather_code"][0] = True
@@ -533,7 +594,7 @@ def test_transform_bronze_record_rejects_boolean_numeric_value(
 def test_transform_bronze_record_propagates_validation_error(
     valid_bronze_record: dict,
 ) -> None:
-    """Structurally invalid Bronze records should fail before transformation."""
+    """Invalid Bronze structure should fail before transformation."""
 
     record = deepcopy(valid_bronze_record)
     record["payload"]["hourly"]["wind_gusts_10m"].pop()
@@ -548,7 +609,7 @@ def test_transform_bronze_record_propagates_validation_error(
 def test_transform_bronze_records_combines_multiple_records(
     valid_bronze_record: dict,
 ) -> None:
-    """Multiple Bronze records should produce one combined Silver collection."""
+    """Multiple Bronze records should produce combined rows."""
 
     dallas_record = deepcopy(valid_bronze_record)
 
@@ -566,12 +627,10 @@ def test_transform_bronze_records_combines_multiple_records(
 
     assert len(result) == 6
 
-    location_ids = {
+    assert {
         row["location_id"]
         for row in result
-    }
-
-    assert location_ids == {
+    } == {
         "TX-DAL",
         "TX-HOU",
     }
@@ -580,7 +639,7 @@ def test_transform_bronze_records_combines_multiple_records(
 def test_transform_bronze_records_preserves_input_order(
     valid_bronze_record: dict,
 ) -> None:
-    """Rows should remain grouped in the order of input Bronze records."""
+    """Rows should remain grouped by source-record order."""
 
     dallas_record = deepcopy(valid_bronze_record)
 
@@ -609,7 +668,7 @@ def test_transform_bronze_records_preserves_input_order(
 
 
 def test_transform_bronze_records_rejects_empty_list() -> None:
-    """The batch transformer should require at least one Bronze record."""
+    """The batch transformer should require input records."""
 
     with pytest.raises(
         WeatherTransformationError,
@@ -619,7 +678,7 @@ def test_transform_bronze_records_rejects_empty_list() -> None:
 
 
 def test_transform_bronze_records_rejects_non_list() -> None:
-    """The batch transformer should reject unsupported collection types."""
+    """The batch transformer should require a list."""
 
     with pytest.raises(
         WeatherTransformationError,
@@ -627,4 +686,337 @@ def test_transform_bronze_records_rejects_non_list() -> None:
     ):
         transform_bronze_records(
             {},  # type: ignore[arg-type]
+        )
+
+
+# =============================================================================
+# DELTA WRITER TESTS
+# =============================================================================
+
+
+def test_write_silver_weather_creates_new_table(
+    valid_silver_rows: list[dict],
+) -> None:
+    """A missing target table should be created."""
+
+    spark, silver_df = _build_mock_delta_writer_spark(
+        table_exists=False,
+        row_count=2,
+    )
+
+    result = write_silver_weather(
+        spark,
+        valid_silver_rows,
+    )
+
+    assert result == SilverWriteResult(
+        table_name=DEFAULT_SILVER_TABLE_NAME,
+        row_count=2,
+        write_action="created",
+    )
+
+    spark.createDataFrame.assert_called_once_with(
+        valid_silver_rows
+    )
+    spark.catalog.tableExists.assert_called_once_with(
+        DEFAULT_SILVER_TABLE_NAME
+    )
+
+    silver_df.write.format.assert_called_once_with("delta")
+    silver_df.write.mode.assert_called_once_with("overwrite")
+    silver_df.write.saveAsTable.assert_called_once_with(
+        DEFAULT_SILVER_TABLE_NAME
+    )
+
+
+def test_write_silver_weather_merges_existing_table(
+    valid_silver_rows: list[dict],
+) -> None:
+    """An existing target table should use an idempotent merge."""
+
+    spark, silver_df = _build_mock_delta_writer_spark(
+        table_exists=True,
+        row_count=2,
+    )
+
+    delta_factory = MagicMock()
+    target_table = MagicMock()
+    aliased_target = MagicMock()
+    merge_builder = MagicMock()
+
+    delta_factory.forName.return_value = target_table
+    target_table.alias.return_value = aliased_target
+    aliased_target.merge.return_value = merge_builder
+    merge_builder.whenMatchedUpdateAll.return_value = merge_builder
+    merge_builder.whenNotMatchedInsertAll.return_value = merge_builder
+
+    result = write_silver_weather(
+        spark,
+        valid_silver_rows,
+        delta_table_factory=delta_factory,
+    )
+
+    assert result == SilverWriteResult(
+        table_name=DEFAULT_SILVER_TABLE_NAME,
+        row_count=2,
+        write_action="merged",
+    )
+
+    delta_factory.forName.assert_called_once_with(
+        spark,
+        DEFAULT_SILVER_TABLE_NAME,
+    )
+    target_table.alias.assert_called_once_with("target")
+    silver_df.alias.assert_called_once_with("source")
+    aliased_target.merge.assert_called_once_with(
+        silver_df,
+        SILVER_MERGE_CONDITION,
+    )
+    merge_builder.whenMatchedUpdateAll.assert_called_once_with()
+    merge_builder.whenNotMatchedInsertAll.assert_called_once_with()
+    merge_builder.execute.assert_called_once_with()
+
+
+def test_write_silver_weather_accepts_and_trims_custom_table_name(
+    valid_silver_rows: list[dict],
+) -> None:
+    """A custom table name should be normalized before use."""
+
+    spark, silver_df = _build_mock_delta_writer_spark(
+        table_exists=False,
+    )
+
+    result = write_silver_weather(
+        spark,
+        valid_silver_rows,
+        "  dbo.custom_silver_weather  ",
+    )
+
+    assert result.table_name == "dbo.custom_silver_weather"
+
+    spark.catalog.tableExists.assert_called_once_with(
+        "dbo.custom_silver_weather"
+    )
+    silver_df.write.saveAsTable.assert_called_once_with(
+        "dbo.custom_silver_weather"
+    )
+
+
+def test_write_silver_weather_rejects_non_list_rows() -> None:
+    """Silver rows must be provided as a list."""
+
+    with pytest.raises(
+        SilverWriteError,
+        match="must be provided as a list",
+    ):
+        write_silver_weather(
+            MagicMock(),
+            {},  # type: ignore[arg-type]
+        )
+
+
+def test_write_silver_weather_rejects_empty_rows() -> None:
+    """At least one Silver row is required."""
+
+    with pytest.raises(
+        SilverWriteError,
+        match="At least one Silver row is required",
+    ):
+        write_silver_weather(
+            MagicMock(),
+            [],
+        )
+
+
+def test_write_silver_weather_rejects_non_dictionary_rows() -> None:
+    """Every Silver row must be a dictionary."""
+
+    with pytest.raises(
+        SilverWriteError,
+        match="Invalid row indexes",
+    ):
+        write_silver_weather(
+            MagicMock(),
+            [
+                {"location_id": "TX-DAL"},
+                "invalid-row",  # type: ignore[list-item]
+            ],
+        )
+
+
+def test_write_silver_weather_rejects_blank_table_name(
+    valid_silver_rows: list[dict],
+) -> None:
+    """A blank target table name should fail."""
+
+    with pytest.raises(
+        SilverWriteError,
+        match="cannot be blank",
+    ):
+        write_silver_weather(
+            MagicMock(),
+            valid_silver_rows,
+            "   ",
+        )
+
+
+def test_write_silver_weather_rejects_non_string_table_name(
+    valid_silver_rows: list[dict],
+) -> None:
+    """The target table name must be a string."""
+
+    with pytest.raises(
+        SilverWriteError,
+        match="must be provided as a string",
+    ):
+        write_silver_weather(
+            MagicMock(),
+            valid_silver_rows,
+            None,  # type: ignore[arg-type]
+        )
+
+
+def test_write_silver_weather_rejects_missing_spark_session(
+    valid_silver_rows: list[dict],
+) -> None:
+    """An active SparkSession is required."""
+
+    with pytest.raises(
+        SilverWriteError,
+        match="active SparkSession is required",
+    ):
+        write_silver_weather(
+            None,
+            valid_silver_rows,
+        )
+
+
+def test_write_silver_weather_wraps_dataframe_creation_error(
+    valid_silver_rows: list[dict],
+) -> None:
+    """Spark DataFrame creation failures should be wrapped."""
+
+    spark = MagicMock()
+    spark.createDataFrame.side_effect = RuntimeError(
+        "Simulated DataFrame failure"
+    )
+
+    with pytest.raises(
+        SilverWriteError,
+        match="Unable to create the Silver Spark DataFrame",
+    ):
+        write_silver_weather(
+            spark,
+            valid_silver_rows,
+        )
+
+
+def test_write_silver_weather_wraps_dataframe_count_error(
+    valid_silver_rows: list[dict],
+) -> None:
+    """Silver DataFrame count failures should be wrapped."""
+
+    spark, silver_df = _build_mock_delta_writer_spark(
+        table_exists=False,
+    )
+    silver_df.count.side_effect = RuntimeError(
+        "Simulated count failure"
+    )
+
+    with pytest.raises(
+        SilverWriteError,
+        match="row count could not be evaluated",
+    ):
+        write_silver_weather(
+            spark,
+            valid_silver_rows,
+        )
+
+
+def test_write_silver_weather_rejects_empty_dataframe(
+    valid_silver_rows: list[dict],
+) -> None:
+    """A Spark DataFrame reporting zero rows should fail."""
+
+    spark, _ = _build_mock_delta_writer_spark(
+        table_exists=False,
+        row_count=0,
+    )
+
+    with pytest.raises(
+        SilverWriteError,
+        match="contains no rows",
+    ):
+        write_silver_weather(
+            spark,
+            valid_silver_rows,
+        )
+
+
+def test_write_silver_weather_wraps_table_lookup_error(
+    valid_silver_rows: list[dict],
+) -> None:
+    """Table-existence lookup failures should be wrapped."""
+
+    spark, _ = _build_mock_delta_writer_spark(
+        table_exists=False,
+    )
+    spark.catalog.tableExists.side_effect = RuntimeError(
+        "Simulated catalog failure"
+    )
+
+    with pytest.raises(
+        SilverWriteError,
+        match="Unable to determine whether",
+    ):
+        write_silver_weather(
+            spark,
+            valid_silver_rows,
+        )
+
+
+def test_write_silver_weather_wraps_table_creation_error(
+    valid_silver_rows: list[dict],
+) -> None:
+    """Delta table creation failures should be wrapped."""
+
+    spark, silver_df = _build_mock_delta_writer_spark(
+        table_exists=False,
+    )
+    silver_df.write.saveAsTable.side_effect = RuntimeError(
+        "Simulated write failure"
+    )
+
+    with pytest.raises(
+        SilverWriteError,
+        match="Unable to create Silver Delta table",
+    ):
+        write_silver_weather(
+            spark,
+            valid_silver_rows,
+        )
+
+
+def test_write_silver_weather_wraps_merge_error(
+    valid_silver_rows: list[dict],
+) -> None:
+    """Delta merge failures should be wrapped."""
+
+    spark, _ = _build_mock_delta_writer_spark(
+        table_exists=True,
+    )
+
+    delta_factory = MagicMock()
+    delta_factory.forName.side_effect = RuntimeError(
+        "Simulated merge failure"
+    )
+
+    with pytest.raises(
+        SilverWriteError,
+        match="Unable to merge records",
+    ):
+        write_silver_weather(
+            spark,
+            valid_silver_rows,
+            delta_table_factory=delta_factory,
         )
