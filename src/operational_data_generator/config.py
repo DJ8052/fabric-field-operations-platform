@@ -1,78 +1,30 @@
-"""
-Configuration settings for the Operational Data Generator.
-
-This module contains all configurable values used throughout the
-synthetic operational data generation process.
-
-Changing values here changes the size and behavior of the generated
-dataset without modifying the generator logic.
-"""
+"""Fixed configuration for deterministic operational source generation."""
 
 from datetime import date
 
-# ==========================================================
-# Generation Calendar
-# ==========================================================
-
-GENERATION_YEAR = date.today().year
-
-START_DATE = date(GENERATION_YEAR, 1, 1)
-END_DATE = date(GENERATION_YEAR, 12, 31)
-
-# ==========================================================
-# Deterministic Generation
-# ==========================================================
-
 RANDOM_SEED = 20260101
+START_DATE = date(2026, 1, 1)
+END_DATE = date(2026, 12, 31)
+INGESTION_DATE = date(2026, 1, 1)
+RUN_ID = "accepted_20260101"
 
-# ==========================================================
-# Target Entity Counts
-# ==========================================================
-
-NUM_REGIONS = 4
-NUM_OFFICES = 12
-NUM_EMPLOYEES = 150
-NUM_PROJECTS = 75
-NUM_JOB_SITES = 120
-NUM_CREWS = 40
-NUM_ACTIVITIES = 20
-NUM_EQUIPMENT_TYPES = 10
-NUM_EQUIPMENT = 80
-NUM_EQUIPMENT_ASSIGNMENTS = 120
-NUM_SAFETY_THRESHOLDS = 40
-NUM_FIELD_SCHEDULES = 250
-
-# ==========================================================
-# Weather Locations (Version 1)
-# ==========================================================
-
-WEATHER_LOCATIONS = [
-    "TX-DAL",
-    "TX-HOU",
-    "TX-AUS",
-]
-
-# ==========================================================
-# Bronze Output Directory
-# ==========================================================
-
-BRONZE_OUTPUT_ROOT = "bronze/operations"
-
-# ==========================================================
-# Output Folder Names
-# ==========================================================
-
-ENTITY_FOLDERS = {
-    "regions": "regions",
-    "offices": "offices",
-    "employees": "employees",
-    "projects": "projects",
-    "job_sites": "job_sites",
-    "crews": "crews",
-    "activities": "activities",
-    "field_schedules": "field_schedules",
-    "equipment_types": "equipment_types",
-    "equipment": "equipment",
-    "equipment_assignments": "equipment_assignments",
-    "safety_thresholds": "safety_thresholds",
+TARGET_COUNTS = {
+    "regions": 4,
+    "offices": 12,
+    "employees": 150,
+    "activities": 20,
+    "equipment_types": 10,
+    "safety_thresholds": 40,
+    "projects": 75,
+    "job_sites": 120,
+    "crews": 40,
+    "equipment": 80,
+    "field_schedules": 250,
+    "equipment_assignments": 120,
 }
+
+WEATHER_LOCATIONS = ("TX-DAL", "TX-HOU", "TX-AUS")
+
+GENERATION_ORDER = tuple(TARGET_COUNTS)
+
+ENTITY_FOLDERS = {name: name for name in TARGET_COUNTS}
