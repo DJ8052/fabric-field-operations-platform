@@ -79,3 +79,6 @@ logs/
 # =====================================================
 __pycache__/
 *.py[cod]
+
+# Deterministic generated data outputs
+generated/
