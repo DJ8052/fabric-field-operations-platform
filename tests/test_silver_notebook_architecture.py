@@ -29,3 +29,17 @@ def test_notebook_supports_pipeline_ids_and_manual_bronze_discovery() -> None:
     assert "else discover_latest_bronze_run(runtime.ingestion_date)" in source
     assert "requested_silver_run_id or" in source
     assert "silver-{resolved_source_run_id}-" in source
+
+
+def test_notebook_registers_negative_acceptance_delta_outputs() -> None:
+    source = NOTEBOOK.read_text(encoding="utf-8")
+    for schema in ("silver_negative", "quarantine_negative", "validation_negative"):
+        assert f'spark.sql("CREATE SCHEMA IF NOT EXISTS {schema}")' in source
+    assert 'silver_schema = "silver_negative"' in source
+    assert 'quarantine_schema = "quarantine_negative"' in source
+    assert 'validation_table = "validation_negative.operational_results"' in source
+    assert source.count(".saveAsTable(") == 3
+    assert ".write.save(" not in source
+    assert '.option("path", f"{runtime.silver_root}/{entity_output.entity}")' in source
+    assert '.option("path", f"{runtime.quarantine_root}/{entity_output.entity}")' in source
+    assert '.option("path", runtime.validation_results_root)' in source

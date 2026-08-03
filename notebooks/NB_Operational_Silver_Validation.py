@@ -91,6 +91,30 @@ print(
     f"silver_run_id={runtime.silver_run_id}"
 )
 
+negative_acceptance_run = any(
+    "acceptance_negative" in root.lower()
+    for root in (
+        runtime.silver_root,
+        runtime.quarantine_root,
+        runtime.validation_results_root,
+    )
+)
+
+spark.sql("CREATE SCHEMA IF NOT EXISTS silver_negative")
+spark.sql("CREATE SCHEMA IF NOT EXISTS quarantine_negative")
+spark.sql("CREATE SCHEMA IF NOT EXISTS validation_negative")
+
+if negative_acceptance_run:
+    silver_schema = "silver_negative"
+    quarantine_schema = "quarantine_negative"
+    validation_table = "validation_negative.operational_results"
+else:
+    silver_schema = "silver"
+    quarantine_schema = "quarantine"
+    validation_table = "validation.operational_results"
+    for schema_name in (silver_schema, quarantine_schema, "validation"):
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+
 def bronze_path(entity: str) -> str:
     return f"{runtime.bronze_root}/{entity}/ingestion_date={runtime.ingestion_date}/run_{runtime.source_run_id}.csv"
 
@@ -120,7 +144,12 @@ for entity_output in output.entities:
         list(entity_output.accepted_records),
         schema=source_frames[entity_output.entity].schema,
     )
-    accepted_frame.write.format("delta").mode("overwrite").save(f"{runtime.silver_root}/{entity_output.entity}")
+    (
+        accepted_frame.write.format("delta")
+        .mode("overwrite")
+        .option("path", f"{runtime.silver_root}/{entity_output.entity}")
+        .saveAsTable(f"{silver_schema}.{entity_output.entity}")
+    )
     if entity_output.quarantine_records:
         quarantine_rows = [
             {
@@ -134,13 +163,23 @@ for entity_output in output.entities:
             }
             for item in entity_output.quarantine_records
         ]
-        spark.createDataFrame(quarantine_rows).write.format("delta").mode("append").save(f"{runtime.quarantine_root}/{entity_output.entity}")
+        (
+            spark.createDataFrame(quarantine_rows).write.format("delta")
+            .mode("append")
+            .option("path", f"{runtime.quarantine_root}/{entity_output.entity}")
+            .saveAsTable(f"{quarantine_schema}.{entity_output.entity}")
+        )
     if entity_output.validation_results:
         result_rows = [
             {**asdict(result), "source_record": json.dumps(result.source_record, default=str, sort_keys=True)}
             for result in entity_output.validation_results
         ]
-        spark.createDataFrame(result_rows).write.format("delta").mode("append").save(runtime.validation_results_root)
+        (
+            spark.createDataFrame(result_rows).write.format("delta")
+            .mode("append")
+            .option("path", runtime.validation_results_root)
+            .saveAsTable(validation_table)
+        )
     print(asdict(entity_output.summary))
 
 print(asdict(output.summary))
