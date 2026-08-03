@@ -97,6 +97,6 @@ There are no severity reclassifications. Ambiguity is exposed in the rule descri
 
 ## Implementation status
 
-The local Python validation package implements 65 of the 66 mapped rules. The transactional increment implements `FSD-001`–`FSD-007`, `FSD-009`, `FSD-010`, `EQA-001`–`EQA-004`, `SFT-001`–`SFT-008`, and `XEN-002`–`XEN-006`. `FSD-008` remains pending because a single Bronze batch contains no immutable prior state or change-event evidence for detecting timestamp edits after rescheduling. It is not present in the implemented rule registry and is not silently treated as complete.
+The local Python validation package implements 65 of the 66 mapped rules. The transactional increment implements `FSD-001`–`FSD-007`, `FSD-009`, `FSD-010`, `EQA-001`–`EQA-004`, `SFT-001`–`SFT-008`, and `XEN-002`–`XEN-006`. `FSD-008` is deferred from Silver Version 1 because a single Bronze batch contains no immutable prior state or change-event evidence for detecting timestamp edits after rescheduling. It is not present in the implemented rule registry and is not silently treated as complete; the rule remains in this matrix pending an approved historical comparison source.
 
-This status reflects local implementation and tests only; Fabric deployment validation has not occurred. Bronze and Silver remain Python/PySpark-based. Gold dimensional models, tests, lineage, and documentation will use dbt later.
+This implementation status is supported by local tests and the clean 921-row Fabric baseline. Isolated negative-data Fabric acceptance has not yet occurred. Bronze and Silver remain Python/PySpark-based. Gold dimensional models, tests, lineage, and documentation will use dbt later.

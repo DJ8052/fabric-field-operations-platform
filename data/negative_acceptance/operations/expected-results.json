@@ -1,0 +1,165 @@
+{
+  "dataset_type": "operational_silver_negative_acceptance",
+  "deferred_rules": [
+    "FSD-008"
+  ],
+  "expected_findings": [
+    {
+      "entity": "regions",
+      "error_code": "WARN_REGION_NAME_MISSING",
+      "expected_disposition": "Accept and log",
+      "record_id": "1",
+      "rule_id": "REG-003",
+      "scenario_id": "warning_region_name_missing",
+      "severity": "Warning",
+      "silver_action": "Retain, attach warning, log; no source change."
+    },
+    {
+      "entity": "equipment_assignments",
+      "error_code": "INFO_EQUIPMENT_ASSIGNMENT_ADJACENT_BOUNDARY",
+      "expected_disposition": "Accept and log",
+      "record_id": "1",
+      "rule_id": "EQA-004",
+      "scenario_id": "info_equipment_assignment_adjacent",
+      "severity": "Info",
+      "silver_action": "Retain unchanged and log accepted adjacency."
+    },
+    {
+      "entity": "equipment_assignments",
+      "error_code": "INFO_EQUIPMENT_ASSIGNMENT_ADJACENT_BOUNDARY",
+      "expected_disposition": "Accept and log",
+      "record_id": "81",
+      "rule_id": "EQA-004",
+      "scenario_id": "info_equipment_assignment_adjacent",
+      "severity": "Info",
+      "silver_action": "Retain unchanged and log accepted adjacency."
+    },
+    {
+      "entity": "job_sites",
+      "error_code": "ERR_JOB_SITE_WEATHER_LOCATION_INVALID",
+      "expected_disposition": "Quarantine and log",
+      "record_id": "1",
+      "rule_id": "JBS-004",
+      "scenario_id": "critical_job_site_weather_location",
+      "severity": "Critical",
+      "silver_action": "Quarantine and log."
+    },
+    {
+      "entity": "job_sites",
+      "error_code": "ERR_CROSS_WEATHER_LOCATION_INVALID",
+      "expected_disposition": "Quarantine and log",
+      "record_id": "1",
+      "rule_id": "XEN-007",
+      "scenario_id": "critical_job_site_weather_location",
+      "severity": "Critical",
+      "silver_action": "Quarantine and log."
+    },
+    {
+      "entity": "equipment_assignments",
+      "error_code": "ERR_EQUIPMENT_ASSIGNMENT_OVERLAP",
+      "expected_disposition": "Quarantine and log",
+      "record_id": "2",
+      "rule_id": "EQA-003",
+      "scenario_id": "critical_equipment_assignment_overlap",
+      "severity": "Critical",
+      "silver_action": "Quarantine affected assignments and log."
+    },
+    {
+      "entity": "equipment_assignments",
+      "error_code": "ERR_CROSS_EQUIPMENT_ASSIGNMENT_OVERLAP",
+      "expected_disposition": "Quarantine and log",
+      "record_id": "2",
+      "rule_id": "XEN-005",
+      "scenario_id": "critical_equipment_assignment_overlap",
+      "severity": "Critical",
+      "silver_action": "Quarantine affected assignments and log."
+    },
+    {
+      "entity": "equipment_assignments",
+      "error_code": "ERR_EQUIPMENT_ASSIGNMENT_OVERLAP",
+      "expected_disposition": "Quarantine and log",
+      "record_id": "82",
+      "rule_id": "EQA-003",
+      "scenario_id": "critical_equipment_assignment_overlap",
+      "severity": "Critical",
+      "silver_action": "Quarantine affected assignments and log."
+    },
+    {
+      "entity": "equipment_assignments",
+      "error_code": "ERR_CROSS_EQUIPMENT_ASSIGNMENT_OVERLAP",
+      "expected_disposition": "Quarantine and log",
+      "record_id": "82",
+      "rule_id": "XEN-005",
+      "scenario_id": "critical_equipment_assignment_overlap",
+      "severity": "Critical",
+      "silver_action": "Quarantine affected assignments and log."
+    }
+  ],
+  "expected_summary": {
+    "critical_result_count": 6,
+    "info_result_count": 2,
+    "rows_accepted": 918,
+    "rows_quarantined": 3,
+    "rows_read": 921,
+    "warning_result_count": 1
+  },
+  "manifest_version": 1,
+  "scenarios": [
+    {
+      "entity": "regions",
+      "expected_disposition": "Accept and log",
+      "mutation": "Set region_name to the empty string.",
+      "record_ids": [
+        "1"
+      ],
+      "rule_ids": [
+        "REG-003"
+      ],
+      "scenario_id": "warning_region_name_missing",
+      "severity": "Warning"
+    },
+    {
+      "entity": "equipment_assignments",
+      "expected_disposition": "Accept and log",
+      "mutation": "Set assignment 81 to start exactly when assignment 1 ends.",
+      "record_ids": [
+        "1",
+        "81"
+      ],
+      "rule_ids": [
+        "EQA-004"
+      ],
+      "scenario_id": "info_equipment_assignment_adjacent",
+      "severity": "Info"
+    },
+    {
+      "entity": "job_sites",
+      "expected_disposition": "Quarantine and log",
+      "mutation": "Set weather_location_code to TX-UNKNOWN.",
+      "record_ids": [
+        "1"
+      ],
+      "rule_ids": [
+        "JBS-004",
+        "XEN-007"
+      ],
+      "scenario_id": "critical_job_site_weather_location",
+      "severity": "Critical"
+    },
+    {
+      "entity": "equipment_assignments",
+      "expected_disposition": "Quarantine and log",
+      "mutation": "Move assignment 82 into assignment 2's active period.",
+      "record_ids": [
+        "2",
+        "82"
+      ],
+      "rule_ids": [
+        "EQA-003",
+        "XEN-005"
+      ],
+      "scenario_id": "critical_equipment_assignment_overlap",
+      "severity": "Critical"
+    }
+  ]
+}

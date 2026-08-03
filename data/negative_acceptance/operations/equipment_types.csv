@@ -1,0 +1,11 @@
+equipment_type_id,equipment_type_code,equipment_type_name,equipment_type_description,equipment_category
+1,ET-001,Mobile Crane,Mobile Crane assets,High Exposure
+2,ET-002,Generator,Generator assets,Standard
+3,ET-003,Scaffolding,Scaffolding assets,High Exposure
+4,ET-004,Excavator,Excavator assets,Standard
+5,ET-005,Forklift,Forklift assets,Standard
+6,ET-006,Aerial Lift,Aerial Lift assets,High Exposure
+7,ET-007,Welder,Welder assets,Standard
+8,ET-008,Compressor,Compressor assets,Standard
+9,ET-009,Concrete Pump,Concrete Pump assets,High Exposure
+10,ET-010,Light Tower,Light Tower assets,Standard

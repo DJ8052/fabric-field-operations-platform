@@ -1,0 +1,21 @@
+activity_id,activity_code,activity_name,activity_description,activity_category
+1,ACT-001,General Site Work,Controlled activity: General Site Work,Standard
+2,ACT-002,Crane Operations,Controlled activity: Crane Operations,High Exposure
+3,ACT-003,Roofing,Controlled activity: Roofing,High Exposure
+4,ACT-004,Concrete Pour,Controlled activity: Concrete Pour,Standard
+5,ACT-005,Excavation,Controlled activity: Excavation,Standard
+6,ACT-006,Electrical Installation,Controlled activity: Electrical Installation,Standard
+7,ACT-007,Welding,Controlled activity: Welding,Standard
+8,ACT-008,Scaffolding,Controlled activity: Scaffolding,High Exposure
+9,ACT-009,Material Handling,Controlled activity: Material Handling,Standard
+10,ACT-010,Surveying,Controlled activity: Surveying,Standard
+11,ACT-011,Pipeline Work,Controlled activity: Pipeline Work,Standard
+12,ACT-012,Roadwork,Controlled activity: Roadwork,Standard
+13,ACT-013,Demolition,Controlled activity: Demolition,Standard
+14,ACT-014,Inspection,Controlled activity: Inspection,Standard
+15,ACT-015,Utility Installation,Controlled activity: Utility Installation,Standard
+16,ACT-016,Steel Erection,Controlled activity: Steel Erection,High Exposure
+17,ACT-017,Painting,Controlled activity: Painting,Standard
+18,ACT-018,Landscaping,Controlled activity: Landscaping,Standard
+19,ACT-019,Equipment Maintenance,Controlled activity: Equipment Maintenance,Standard
+20,ACT-020,Safety Review,Controlled activity: Safety Review,Standard

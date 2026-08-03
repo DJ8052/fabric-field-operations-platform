@@ -1,0 +1,13 @@
+office_id,office_code,office_name,region_id,office_description
+1,OFF-001,Dallas Office,1,Field operations office in Dallas
+2,OFF-002,Fort Worth Office,2,Field operations office in Fort Worth
+3,OFF-003,Plano Office,3,Field operations office in Plano
+4,OFF-004,Austin Office,4,Field operations office in Austin
+5,OFF-005,Round Rock Office,1,Field operations office in Round Rock
+6,OFF-006,Waco Office,2,Field operations office in Waco
+7,OFF-007,Houston Office,3,Field operations office in Houston
+8,OFF-008,Baytown Office,4,Field operations office in Baytown
+9,OFF-009,Galveston Office,1,Field operations office in Galveston
+10,OFF-010,Midland Office,2,Field operations office in Midland
+11,OFF-011,Odessa Office,3,Field operations office in Odessa
+12,OFF-012,Abilene Office,4,Field operations office in Abilene

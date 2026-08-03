@@ -1,0 +1,81 @@
+equipment_id,equipment_code,equipment_type_id,equipment_status,serial_number,asset_tag,equipment_description
+1,EQ-001,1,Available,SN202600001,ASSET-0001,Synthetic equipment asset 001
+2,EQ-002,2,Available,SN202600002,ASSET-0002,Synthetic equipment asset 002
+3,EQ-003,3,In Use,SN202600003,ASSET-0003,Synthetic equipment asset 003
+4,EQ-004,4,Available,SN202600004,ASSET-0004,Synthetic equipment asset 004
+5,EQ-005,5,Available,SN202600005,ASSET-0005,Synthetic equipment asset 005
+6,EQ-006,6,In Use,SN202600006,ASSET-0006,Synthetic equipment asset 006
+7,EQ-007,7,Available,SN202600007,ASSET-0007,Synthetic equipment asset 007
+8,EQ-008,8,Available,SN202600008,ASSET-0008,Synthetic equipment asset 008
+9,EQ-009,9,In Use,SN202600009,ASSET-0009,Synthetic equipment asset 009
+10,EQ-010,10,Available,SN202600010,ASSET-0010,Synthetic equipment asset 010
+11,EQ-011,1,Available,SN202600011,ASSET-0011,Synthetic equipment asset 011
+12,EQ-012,2,In Use,SN202600012,ASSET-0012,Synthetic equipment asset 012
+13,EQ-013,3,Available,SN202600013,ASSET-0013,Synthetic equipment asset 013
+14,EQ-014,4,Available,SN202600014,ASSET-0014,Synthetic equipment asset 014
+15,EQ-015,5,In Use,SN202600015,ASSET-0015,Synthetic equipment asset 015
+16,EQ-016,6,Available,SN202600016,ASSET-0016,Synthetic equipment asset 016
+17,EQ-017,7,Available,SN202600017,ASSET-0017,Synthetic equipment asset 017
+18,EQ-018,8,In Use,SN202600018,ASSET-0018,Synthetic equipment asset 018
+19,EQ-019,9,Available,SN202600019,ASSET-0019,Synthetic equipment asset 019
+20,EQ-020,10,Available,SN202600020,ASSET-0020,Synthetic equipment asset 020
+21,EQ-021,1,In Use,SN202600021,ASSET-0021,Synthetic equipment asset 021
+22,EQ-022,2,Available,SN202600022,ASSET-0022,Synthetic equipment asset 022
+23,EQ-023,3,Available,SN202600023,ASSET-0023,Synthetic equipment asset 023
+24,EQ-024,4,In Use,SN202600024,ASSET-0024,Synthetic equipment asset 024
+25,EQ-025,5,Available,SN202600025,ASSET-0025,Synthetic equipment asset 025
+26,EQ-026,6,Available,SN202600026,ASSET-0026,Synthetic equipment asset 026
+27,EQ-027,7,In Use,SN202600027,ASSET-0027,Synthetic equipment asset 027
+28,EQ-028,8,Available,SN202600028,ASSET-0028,Synthetic equipment asset 028
+29,EQ-029,9,Available,SN202600029,ASSET-0029,Synthetic equipment asset 029
+30,EQ-030,10,In Use,SN202600030,ASSET-0030,Synthetic equipment asset 030
+31,EQ-031,1,Available,SN202600031,ASSET-0031,Synthetic equipment asset 031
+32,EQ-032,2,Available,SN202600032,ASSET-0032,Synthetic equipment asset 032
+33,EQ-033,3,In Use,SN202600033,ASSET-0033,Synthetic equipment asset 033
+34,EQ-034,4,Available,SN202600034,ASSET-0034,Synthetic equipment asset 034
+35,EQ-035,5,Available,SN202600035,ASSET-0035,Synthetic equipment asset 035
+36,EQ-036,6,In Use,SN202600036,ASSET-0036,Synthetic equipment asset 036
+37,EQ-037,7,Available,SN202600037,ASSET-0037,Synthetic equipment asset 037
+38,EQ-038,8,Available,SN202600038,ASSET-0038,Synthetic equipment asset 038
+39,EQ-039,9,In Use,SN202600039,ASSET-0039,Synthetic equipment asset 039
+40,EQ-040,10,Available,SN202600040,ASSET-0040,Synthetic equipment asset 040
+41,EQ-041,1,Available,SN202600041,ASSET-0041,Synthetic equipment asset 041
+42,EQ-042,2,In Use,SN202600042,ASSET-0042,Synthetic equipment asset 042
+43,EQ-043,3,Available,SN202600043,ASSET-0043,Synthetic equipment asset 043
+44,EQ-044,4,Available,SN202600044,ASSET-0044,Synthetic equipment asset 044
+45,EQ-045,5,In Use,SN202600045,ASSET-0045,Synthetic equipment asset 045
+46,EQ-046,6,Available,SN202600046,ASSET-0046,Synthetic equipment asset 046
+47,EQ-047,7,Available,SN202600047,ASSET-0047,Synthetic equipment asset 047
+48,EQ-048,8,In Use,SN202600048,ASSET-0048,Synthetic equipment asset 048
+49,EQ-049,9,Available,SN202600049,ASSET-0049,Synthetic equipment asset 049
+50,EQ-050,10,Available,SN202600050,ASSET-0050,Synthetic equipment asset 050
+51,EQ-051,1,In Use,SN202600051,ASSET-0051,Synthetic equipment asset 051
+52,EQ-052,2,Available,SN202600052,ASSET-0052,Synthetic equipment asset 052
+53,EQ-053,3,Available,SN202600053,ASSET-0053,Synthetic equipment asset 053
+54,EQ-054,4,In Use,SN202600054,ASSET-0054,Synthetic equipment asset 054
+55,EQ-055,5,Available,SN202600055,ASSET-0055,Synthetic equipment asset 055
+56,EQ-056,6,Available,SN202600056,ASSET-0056,Synthetic equipment asset 056
+57,EQ-057,7,In Use,SN202600057,ASSET-0057,Synthetic equipment asset 057
+58,EQ-058,8,Available,SN202600058,ASSET-0058,Synthetic equipment asset 058
+59,EQ-059,9,Available,SN202600059,ASSET-0059,Synthetic equipment asset 059
+60,EQ-060,10,In Use,SN202600060,ASSET-0060,Synthetic equipment asset 060
+61,EQ-061,1,Available,SN202600061,ASSET-0061,Synthetic equipment asset 061
+62,EQ-062,2,Available,SN202600062,ASSET-0062,Synthetic equipment asset 062
+63,EQ-063,3,In Use,SN202600063,ASSET-0063,Synthetic equipment asset 063
+64,EQ-064,4,Available,SN202600064,ASSET-0064,Synthetic equipment asset 064
+65,EQ-065,5,Available,SN202600065,ASSET-0065,Synthetic equipment asset 065
+66,EQ-066,6,In Use,SN202600066,ASSET-0066,Synthetic equipment asset 066
+67,EQ-067,7,Available,SN202600067,ASSET-0067,Synthetic equipment asset 067
+68,EQ-068,8,Available,SN202600068,ASSET-0068,Synthetic equipment asset 068
+69,EQ-069,9,In Use,SN202600069,ASSET-0069,Synthetic equipment asset 069
+70,EQ-070,10,Available,SN202600070,ASSET-0070,Synthetic equipment asset 070
+71,EQ-071,1,Available,SN202600071,ASSET-0071,Synthetic equipment asset 071
+72,EQ-072,2,In Use,SN202600072,ASSET-0072,Synthetic equipment asset 072
+73,EQ-073,3,Available,SN202600073,ASSET-0073,Synthetic equipment asset 073
+74,EQ-074,4,Available,SN202600074,ASSET-0074,Synthetic equipment asset 074
+75,EQ-075,5,In Use,SN202600075,ASSET-0075,Synthetic equipment asset 075
+76,EQ-076,6,Available,SN202600076,ASSET-0076,Synthetic equipment asset 076
+77,EQ-077,7,Available,SN202600077,ASSET-0077,Synthetic equipment asset 077
+78,EQ-078,8,In Use,SN202600078,ASSET-0078,Synthetic equipment asset 078
+79,EQ-079,9,Available,SN202600079,ASSET-0079,Synthetic equipment asset 079
+80,EQ-080,10,Available,SN202600080,ASSET-0080,Synthetic equipment asset 080

@@ -14,7 +14,16 @@ from operational_bronze_ingestion import (
 )
 
 
-SOURCE_ROOT = "Files/source/operations"
+DEFAULT_SOURCE_ROOT = "Files/source/operations"
+requested_source_root = (
+    globals().get("source_root")
+    or globals().get("SOURCE_ROOT")
+)
+SOURCE_ROOT = (
+    requested_source_root.strip()
+    if isinstance(requested_source_root, str) and requested_source_root.strip()
+    else DEFAULT_SOURCE_ROOT
+)
 BRONZE_ROOT = "Files/bronze/operations"
 INGESTION_DATE = date.today().isoformat()
 RUN_ID = "operational-manual"

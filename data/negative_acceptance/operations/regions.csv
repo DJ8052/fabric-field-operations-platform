@@ -1,0 +1,5 @@
+region_id,region_code,region_name,region_description
+1,REG-001,,North Texas operating region
+2,REG-002,Central Texas,Central Texas operating region
+3,REG-003,Gulf Coast,Gulf Coast operating region
+4,REG-004,West Texas,West Texas operating region

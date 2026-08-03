@@ -144,7 +144,7 @@ This document defines the Version 1 business contracts for the 12 operational so
 | FSD-005 | Field Schedule.`project_id` equals the `project_id` on the Job Site resolved by `job_site_id`. | Hard Reject |
 | FSD-006 | A row whose `status` is `Completed` is not referenced by another row's `rescheduled_from_schedule_id`. | Hard Reject |
 | FSD-007 | Every row whose `status` is `Rescheduled` is referenced by at least one successor row's `rescheduled_from_schedule_id`, and that successor FK resolves. | Hard Reject |
-| FSD-008 | Original schedule timestamps are unchanged after rescheduling. This requires a prior immutable snapshot or change-event source, neither of which exists in a single Bronze CSV; enforcement architecture is unresolved. | Hard Reject |
+| FSD-008 | Original schedule timestamps are unchanged after rescheduling. This requires a prior immutable snapshot or change-event source, neither of which exists in a single Bronze CSV; enforcement is deferred from Silver Version 1 pending an approved historical comparison source. | Hard Reject |
 | FSD-009 | `rescheduled_from_schedule_id` does not equal the row's `field_schedule_id`, and repeatedly following populated predecessors never revisits a `field_schedule_id`. | Hard Reject |
 | FSD-010 | `status` is exactly one of `Scheduled`, `In Progress`, `Completed`, `Delayed`, `Cancelled`, or `Rescheduled`. | Hard Reject |
 
