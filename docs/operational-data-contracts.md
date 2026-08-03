@@ -1,318 +1,276 @@
 # Operational Data Contracts
 
-## Purpose
+## Purpose and authority
 
-This document defines the business-first data contracts for the approved operational source model used by the Fabric Field Operations Intelligence Platform. It is the authoritative business definition of what each source entity must look like, how entities relate, and what conditions must be satisfied before data is accepted for downstream use.
+This document defines the Version 1 business contracts for the 12 operational source entities. It governs source grain and Silver validation; it is not the Gold dimensional model. Field names and required fields below are reconciled to the generated CSV schema and the operational Bronze ingestion configuration as of Phase 10, Step 3. The evidence and differences from the prior contract are recorded in `silver-contract-schema-reconciliation.md`.
 
-This document is not the Gold star schema. It governs the source model only. Its purpose is to ensure that operational data is complete, consistent, traceable, and suitable for Phase 10 synthetic data generation and Silver validation.
+## Contract principles
 
-## Contract Principles
+- Business keys are immutable and may not be reassigned or silently overwritten.
+- A required field is a column required by Bronze ingestion. Value-level null/empty behavior is governed by the explicit rules below; fields with a specific Warn and Flag missing-value rule remain warning-only.
+- A nullable/optional field is validated conditionally when populated.
+- Foreign keys must resolve as listed in the relationship register below.
+- Bronze values remain available for lineage. Silver may normalize only where an Info rule explicitly permits a meaning-preserving operation.
+- The source grain is unchanged. No Version 2 fields or entities are introduced.
+- Every rule retains its original enforcement classification: **Hard Reject**, **Warn and Flag**, or **Informational**.
 
-- The contracts are written for business stakeholders and are technology-independent.
-- The approved source grain remains unchanged.
-- Business keys are immutable and must not be reassigned or overwritten.
-- Required fields cannot be null.
-- Foreign keys must resolve to an existing record in the referenced entity.
-- Historical business events must be preserved.
-- Silver may standardize and validate data, but it must not invent missing business values or silently correct source data.
-- Every validation rule has an enforcement level: Hard Reject, Warn and Flag, or Informational.
-- The source model must preserve lineage for schedule changes and other historical events.
+## Entity contracts
 
-## Region Contract
+### Region
 
-- Business Purpose: Represents the operating region used to group offices and field activity.
-- Grain: One row per region.
-- Business Key: Region code, supplied by the source system and immutable.
-- Candidate Primary Key: Region identifier.
-- Required Fields: region_code, region_name.
-- Nullable Fields: region_description.
-- Foreign Keys: None.
-- Accepted Values or Controlled Domains: region_code should be a stable business code and region_name should be non-blank.
-- Validation Rules:
+- Grain: one row per region.
+- Business key: `region_code`; candidate primary key: `region_id`.
+- Required fields: `region_id`, `region_code`, `region_name`.
+- Nullable/optional fields: `region_description`.
+- Foreign keys: none.
 
-| Rule | Enforcement |
-| --- | --- |
-| Region code is required and cannot be null. | Hard Reject |
-| Duplicate region business keys are not allowed. | Hard Reject |
-| Region name must be populated with a meaningful value. | Warn and Flag |
+| Rule ID | Deterministic validation rule | Enforcement |
+| --- | --- | --- |
+| REG-001 | `region_code` is not null and, after no normalization, is not the empty string. | Hard Reject |
+| REG-002 | No two Region rows have the same `region_code`. | Hard Reject |
+| REG-003 | `region_name` is not null and is not the empty string. Whitespace-only handling is an unresolved normalization decision. | Warn and Flag |
 
-- Update Behavior: Region master values are updated only when the business definition changes; historical business meaning must be preserved.
+### Office
 
-## Office Contract
+- Grain: one row per office.
+- Business key: `office_code`; candidate primary key: `office_id`.
+- Required fields: `office_id`, `office_code`, `office_name`, `region_id`.
+- Nullable/optional fields: `office_description`.
+- Foreign keys: `region_id` -> Region.`region_id`.
 
-- Business Purpose: Represents a business office that belongs to a region and serves as the home office for employees and crews.
-- Grain: One row per office.
-- Business Key: Office code, supplied by the source system and immutable.
-- Candidate Primary Key: Office identifier.
-- Required Fields: office_code, office_name, region_id.
-- Nullable Fields: office_description.
-- Foreign Keys: region_id -> Region.
-- Accepted Values or Controlled Domains: office_code and office_name should be unique within the operating context.
-- Validation Rules:
+| Rule ID | Deterministic validation rule | Enforcement |
+| --- | --- | --- |
+| OFF-001 | `office_code` is not null and is not the empty string. | Hard Reject |
+| OFF-002 | `region_id` resolves to Region.`region_id`. | Hard Reject |
+| OFF-003 | No two Office rows have the same `office_code`. | Hard Reject |
+| OFF-004 | `office_name` is not null and is not the empty string. Whitespace-only handling is unresolved. | Warn and Flag |
 
-| Rule | Enforcement |
-| --- | --- |
-| Office code is required and cannot be null. | Hard Reject |
-| Office must reference a valid region. | Hard Reject |
-| Duplicate office business keys are not allowed. | Hard Reject |
-| Missing office name is a warning. | Warn and Flag |
+### Employee
 
-- Update Behavior: Office definitions remain stable; updates should not change the historical identity of the office.
+- Grain: one row per employee.
+- Business key: `employee_number`; candidate primary key: `employee_id`.
+- Required fields: `employee_id`, `employee_number`, `employee_name`, `home_office_id`, `employment_status`.
+- Nullable/optional fields: `termination_date`, `employee_role_code`.
+- Foreign keys: `home_office_id` -> Office.`office_id`.
+- Generated status domain: `Active`. The broader business domain remains unresolved; no additional values are invented here.
 
-## Employee Contract
+| Rule ID | Deterministic validation rule | Enforcement |
+| --- | --- | --- |
+| EMP-001 | `employee_number` is not null and is not the empty string. | Hard Reject |
+| EMP-002 | `home_office_id` resolves to Office.`office_id`. | Hard Reject |
+| EMP-003 | No two Employee rows have the same `employee_number`. | Hard Reject |
+| EMP-004 | An Employee whose `employment_status` is `Terminated` is not referenced by Crew.`crew_lead_employee_id`; the full approved status domain and case policy are unresolved. | Warn and Flag |
 
-- Business Purpose: Represents a workforce member who may be assigned to crews or serve as a crew lead.
-- Grain: One row per employee.
-- Business Key: Employee number, supplied by the source system and immutable.
-- Candidate Primary Key: Employee identifier.
-- Required Fields: employee_number, employee_name, home_office_id, employment_status.
-- Nullable Fields: termination_date, employee_role_code.
-- Foreign Keys: home_office_id -> Office.
-- Accepted Values or Controlled Domains: employment_status should be a controlled domain such as Active, Leave, Terminated, or comparable business status.
-- Validation Rules:
+### Project
 
-| Rule | Enforcement |
-| --- | --- |
-| Employee number is required and cannot be null. | Hard Reject |
-| Employee must reference a valid home office. | Hard Reject |
-| Duplicate employee business keys are not allowed. | Hard Reject |
-| A terminated employee should not be used as an active crew lead. | Warn and Flag |
+- Grain: one row per project.
+- Business key: `project_code`; candidate primary key: `project_id`.
+- Required fields: `project_id`, `project_code`, `project_name`, `office_id`, `project_manager_employee_id`, `field_manager_employee_id`, `status`.
+- Nullable/optional fields: `project_start_date`, `project_end_date`, `priority_code`, `project_description`, `parent_project_code`.
+- Foreign keys: `office_id` -> Office.`office_id`; `project_manager_employee_id` -> Employee.`employee_id`; `field_manager_employee_id` -> Employee.`employee_id`.
+- Controlled `status` values verified in generator validation: `Planned`, `Active`, `Closed`, `Cancelled`.
 
-- Update Behavior: Historical employee identity is preserved. Status changes are tracked as business events rather than by overwriting the original record.
+| Rule ID | Deterministic validation rule | Enforcement |
+| --- | --- | --- |
+| PRJ-001 | `project_code` is not null and is not the empty string. | Hard Reject |
+| PRJ-002 | No two Project rows have the same `project_code`. | Hard Reject |
+| PRJ-003 | `project_name` is not null and is not the empty string. Whitespace-only handling is unresolved. | Warn and Flag |
 
-## Project Contract
+### Job Site
 
-- Business Purpose: Represents the business project that work is performed under.
-- Grain: One row per project.
-- Business Key: Project code, supplied by the source system and immutable.
-- Candidate Primary Key: Project identifier.
-- Required Fields: project_code, project_name, project_status.
-- Nullable Fields: project_description, parent_project_code.
-- Foreign Keys: None.
-- Accepted Values or Controlled Domains: project_status should use a controlled list, such as Planned, Active, Closed, or Cancelled.
-- Validation Rules:
+- Grain: one row per job site.
+- Business key: `job_site_code`; candidate primary key: `job_site_id`.
+- Required fields: `job_site_id`, `job_site_code`, `job_site_name`, `project_id`, `weather_location_code`.
+- Nullable/optional fields: `job_site_description`.
+- Foreign keys: `project_id` -> Project.`project_id`.
+- Controlled `weather_location_code` values: `TX-DAL`, `TX-HOU`, `TX-AUS`.
 
-| Rule | Enforcement |
-| --- | --- |
-| Project code is required and cannot be null. | Hard Reject |
-| Duplicate project business keys are not allowed. | Hard Reject |
-| Project name should not be blank. | Warn and Flag |
+| Rule ID | Deterministic validation rule | Enforcement |
+| --- | --- | --- |
+| JBS-001 | `job_site_code` is not null and is not the empty string. | Hard Reject |
+| JBS-002 | `project_id` resolves to Project.`project_id`. | Hard Reject |
+| JBS-003 | No two Job Site rows have the same `job_site_code`. | Hard Reject |
+| JBS-004 | `weather_location_code` is exactly one of `TX-DAL`, `TX-HOU`, or `TX-AUS`. | Hard Reject |
 
-- Update Behavior: Project definitions remain stable, and lifecycle changes are recorded without changing the original business key.
+### Crew
 
-## Job Site Contract
+- Grain: one row per crew.
+- Business key: `crew_code`; candidate primary key: `crew_id`.
+- Required fields: `crew_id`, `crew_code`, `home_office_id`, `crew_status`.
+- Nullable/optional fields: `crew_lead_employee_id`, `crew_description`.
+- Foreign keys: `home_office_id` -> Office.`office_id`; when populated, `crew_lead_employee_id` -> Employee.`employee_id`.
+- Generated status domain: `Active`. The broader business domain remains unresolved.
 
-- Business Purpose: Represents a physical job site that belongs to a project and is associated with a weather location.
-- Grain: One row per job site.
-- Business Key: Job site code, supplied by the source system and immutable.
-- Candidate Primary Key: Job site identifier.
-- Required Fields: job_site_code, job_site_name, project_id, weather_location_code.
-- Nullable Fields: job_site_description.
-- Foreign Keys: project_id -> Project.
-- Accepted Values or Controlled Domains: weather_location_code must be one of the configured locations: TX-DAL, TX-HOU, or TX-AUS.
-- Validation Rules:
+| Rule ID | Deterministic validation rule | Enforcement |
+| --- | --- | --- |
+| CRW-001 | `crew_code` is not null and is not the empty string. | Hard Reject |
+| CRW-002 | `home_office_id` resolves to Office.`office_id`. | Hard Reject |
+| CRW-003 | No two Crew rows have the same `crew_code`. | Hard Reject |
+| CRW-004 | When `crew_lead_employee_id` is populated, it resolves to an Employee whose `employment_status` is exactly `Active`; status case policy is unresolved. | Hard Reject |
+| CRW-005 | When `crew_lead_employee_id` is populated, the referenced Employee.`home_office_id` equals Crew.`home_office_id`. | Warn and Flag |
+| CRW-006 | `crew_lead_employee_id` is null or empty. This is permitted but produces a warning. | Warn and Flag |
 
-| Rule | Enforcement |
-| --- | --- |
-| Job site code is required and cannot be null. | Hard Reject |
-| Job site must reference a valid project. | Hard Reject |
-| Duplicate job site business keys are not allowed. | Hard Reject |
-| Weather location must be one of the three approved locations. | Hard Reject |
+### Activity
 
-- Update Behavior: Job site identity is preserved. If location or project assignment changes, the historical record remains intact and lineage is maintained.
+- Grain: one row per activity.
+- Business key: `activity_code`; candidate primary key: `activity_id`.
+- Required fields: `activity_id`, `activity_code`, `activity_name`.
+- Nullable/optional fields: `activity_description`, `activity_category`.
+- Foreign keys: none.
 
-## Crew Contract
+| Rule ID | Deterministic validation rule | Enforcement |
+| --- | --- | --- |
+| ACT-001 | `activity_code` is not null and is not the empty string. | Hard Reject |
+| ACT-002 | No two Activity rows have the same `activity_code`. | Hard Reject |
+| ACT-003 | `activity_name` is not null and is not the empty string. Whitespace-only handling is unresolved. | Warn and Flag |
 
-- Business Purpose: Represents a field crew that operates from a home office and may be led by an employee.
-- Grain: One row per crew.
-- Business Key: Crew code, supplied by the source system and immutable.
-- Candidate Primary Key: Crew identifier.
-- Required Fields: crew_code, home_office_id, crew_status.
-- Nullable Fields: crew_lead_employee_id, crew_description.
-- Foreign Keys: home_office_id -> Office; crew_lead_employee_id -> Employee.
-- Accepted Values or Controlled Domains: crew_status should be a controlled business status such as Active, Inactive, or Disbanded.
-- Validation Rules:
+### Field Schedule
 
-| Rule | Enforcement |
-| --- | --- |
-| Crew code is required and cannot be null. | Hard Reject |
-| Crew must reference a valid home office. | Hard Reject |
-| Duplicate crew business keys are not allowed. | Hard Reject |
-| When populated, crew_lead_employee_id must reference an active Employee. | Hard Reject |
-| The crew lead should normally belong to the same home office as the crew. | Warn and Flag |
-| A missing crew lead is allowed temporarily but must be flagged. | Warn and Flag |
+- Grain: one row per schedule occurrence.
+- Business key and candidate primary key: `field_schedule_id`.
+- Required fields: `field_schedule_id`, `project_id`, `job_site_id`, `crew_id`, `activity_id`, `scheduled_start_timestamp`, `scheduled_end_timestamp`, `scheduled_date`, `planned_crew_hours`, `planned_crew_size`, `planned_labor_hours`, `status`, `rescheduled_from_schedule_id` (column required; value may be empty for a lineage root).
+- Nullable/optional generated fields: `scenario_id` (generated scenario/test metadata; not required by Bronze ingestion).
+- Foreign keys: `project_id` -> Project.`project_id`; `job_site_id` -> Job Site.`job_site_id`; `crew_id` -> Crew.`crew_id`; `activity_id` -> Activity.`activity_id`; when populated, `rescheduled_from_schedule_id` -> Field Schedule.`field_schedule_id`.
+- Controlled `status` values: `Scheduled`, `In Progress`, `Completed`, `Delayed`, `Cancelled`, `Rescheduled`.
+- Schema conflict: the prior contract named nonexistent `approved_adjustment_flag`, `approved_exception_note`, and `cancellation_reason_code`. They are not added or invented. The exception mechanism referenced by FSD-003 therefore remains an architecture decision.
+- Labor-hours decision: generator code and tests calculate `planned_labor_hours = planned_crew_hours * planned_crew_size`; no `crew_size` column exists in Crew. Therefore Field Schedule.`planned_crew_size` is authoritative. A nominal Crew comparison cannot be implemented until a future architecture decision adds or identifies such a source field; no mismatch error is defined in Version 1.
 
-- Update Behavior: Crew identity remains stable. Changes to crew composition or leadership are tracked as business changes rather than by overwriting the initial record.
+| Rule ID | Deterministic validation rule | Enforcement |
+| --- | --- | --- |
+| FSD-001 | Parsed `scheduled_end_timestamp` is strictly greater than parsed `scheduled_start_timestamp`. Timestamp parsing/time-zone policy is unresolved. | Hard Reject |
+| FSD-002 | `scheduled_date` equals the calendar-date portion of `scheduled_start_timestamp`. | Hard Reject |
+| FSD-003 | `planned_crew_hours` equals (`scheduled_end_timestamp` - `scheduled_start_timestamp`) in hours. The prior approved-adjustment exception cannot be evaluated because no adjustment/exception column exists; adding an exception mechanism is unresolved. | Warn and Flag |
+| FSD-004 | `planned_labor_hours` equals `planned_crew_hours * planned_crew_size`; Field Schedule.`planned_crew_size` is authoritative. | Hard Reject |
+| FSD-005 | Field Schedule.`project_id` equals the `project_id` on the Job Site resolved by `job_site_id`. | Hard Reject |
+| FSD-006 | A row whose `status` is `Completed` is not referenced by another row's `rescheduled_from_schedule_id`. | Hard Reject |
+| FSD-007 | Every row whose `status` is `Rescheduled` is referenced by at least one successor row's `rescheduled_from_schedule_id`, and that successor FK resolves. | Hard Reject |
+| FSD-008 | Original schedule timestamps are unchanged after rescheduling. This requires a prior immutable snapshot or change-event source, neither of which exists in a single Bronze CSV; enforcement architecture is unresolved. | Hard Reject |
+| FSD-009 | `rescheduled_from_schedule_id` does not equal the row's `field_schedule_id`, and repeatedly following populated predecessors never revisits a `field_schedule_id`. | Hard Reject |
+| FSD-010 | `status` is exactly one of `Scheduled`, `In Progress`, `Completed`, `Delayed`, `Cancelled`, or `Rescheduled`. | Hard Reject |
 
-## Activity Contract
+### Equipment Type
 
-- Business Purpose: Represents the type of field activity being planned or executed.
-- Grain: One row per activity.
-- Business Key: Activity code, supplied by the source system and immutable.
-- Candidate Primary Key: Activity identifier.
-- Required Fields: activity_code, activity_name.
-- Nullable Fields: activity_description, activity_category.
-- Foreign Keys: None.
-- Accepted Values or Controlled Domains: activity_code and activity_name should be controlled and business-readable.
-- Validation Rules:
+- Grain: one row per equipment type.
+- Business key: `equipment_type_code`; candidate primary key: `equipment_type_id`.
+- Required fields: `equipment_type_id`, `equipment_type_code`, `equipment_type_name`.
+- Nullable/optional fields: `equipment_type_description`, `equipment_category`.
+- Foreign keys: none.
 
-| Rule | Enforcement |
-| --- | --- |
-| Activity code is required and cannot be null. | Hard Reject |
-| Duplicate activity business keys are not allowed. | Hard Reject |
-| Activity name should not be blank. | Warn and Flag |
+| Rule ID | Deterministic validation rule | Enforcement |
+| --- | --- | --- |
+| EQT-001 | `equipment_type_code` is not null and is not the empty string. | Hard Reject |
+| EQT-002 | No two Equipment Type rows have the same `equipment_type_code`. | Hard Reject |
+| EQT-003 | `equipment_type_name` is not null and is not the empty string. Whitespace-only handling is unresolved. | Warn and Flag |
 
-- Update Behavior: Activity definitions remain stable unless the business meaning changes materially.
+### Equipment
 
-## Field Schedule Contract
+- Grain: one row per equipment asset.
+- Business key: `equipment_code`; candidate primary key: `equipment_id`.
+- Required fields: `equipment_id`, `equipment_code`, `equipment_type_id`, `equipment_status`.
+- Nullable/optional fields: `serial_number`, `asset_tag`, `equipment_description`.
+- Foreign keys: `equipment_type_id` -> Equipment Type.`equipment_type_id`.
+- Generated status values are `Available` and `In Use`; the prior example also named `Out of Service` and `Retired`, but an approved complete domain is unresolved.
 
-- Business Purpose: Represents the planned execution of work for a job site, project, and crew over a time window.
-- Grain: One row per schedule occurrence.
-- Business Key: The immutable source schedule identifier supplied by the source system.
-- Candidate Primary Key: Schedule identifier.
-- Required Fields: schedule_id, job_site_id, project_id, crew_id, scheduled_start_timestamp, scheduled_end_timestamp, scheduled_date, planned_crew_hours, planned_labor_hours, schedule_status.
-- Nullable Fields: rescheduled_from_schedule_id, cancellation_reason_code, approved_adjustment_flag, approved_exception_note.
-- Foreign Keys: job_site_id -> Job Site; project_id -> Project; crew_id -> Crew; rescheduled_from_schedule_id -> Field Schedule.
-- Accepted Values or Controlled Domains: schedule_status must be one of Scheduled, In Progress, Completed, Delayed, Cancelled, or Rescheduled.
-- Validation Rules:
+| Rule ID | Deterministic validation rule | Enforcement |
+| --- | --- | --- |
+| EQP-001 | `equipment_code` is not null and is not the empty string. | Hard Reject |
+| EQP-002 | `equipment_type_id` resolves to Equipment Type.`equipment_type_id`. | Hard Reject |
+| EQP-003 | No two Equipment rows have the same `equipment_code`. | Hard Reject |
+| EQP-004 | `equipment_status` is not null and is not the empty string; domain membership cannot be evaluated until the complete approved domain is decided. | Warn and Flag |
 
-| Rule | Enforcement |
-| --- | --- |
-| scheduled_end_timestamp must be greater than scheduled_start_timestamp. | Hard Reject |
-| scheduled_date must equal the date portion of scheduled_start_timestamp. | Hard Reject |
-| planned_crew_hours must equal the scheduled duration unless an approved adjustment field or documented exception exists. | Warn and Flag |
-| planned_labor_hours must equal planned_crew_hours multiplied by the applicable crew size. | Hard Reject |
-| project_id must match the Project associated with job_site_id. | Hard Reject |
-| Completed schedules cannot be rescheduled. | Hard Reject |
-| Rescheduled rows must have a valid successor row. | Hard Reject |
-| Original timestamps cannot be edited after rescheduling. | Hard Reject |
-| Reschedule lineage cannot self-reference or cycle. | Hard Reject |
-| Status must be one of the controlled values. | Hard Reject |
+### Equipment Assignment
 
-- Update Behavior: Rescheduling is immutable. The original schedule row is never overwritten. The original row is marked as Rescheduled or Cancelled, and a new row is created with a new identifier and a rescheduled_from_schedule_id that preserves lineage.
+- Grain: one row per equipment assignment period.
+- Business key and candidate primary key: `assignment_id`.
+- Required fields: `assignment_id`, `equipment_id`, `job_site_id`, `project_id`, `assignment_start_timestamp`.
+- Nullable/optional fields: `assignment_end_timestamp`, `assignment_note`, `scenario_id`.
+- Foreign keys: `equipment_id` -> Equipment.`equipment_id`; `job_site_id` -> Job Site.`job_site_id`; `project_id` -> Project.`project_id`.
 
-## Equipment Type Contract
+| Rule ID | Deterministic validation rule | Enforcement |
+| --- | --- | --- |
+| EQA-001 | When `assignment_end_timestamp` is populated, its parsed timestamp is strictly greater than parsed `assignment_start_timestamp`; parsing/time-zone policy is unresolved. | Hard Reject |
+| EQA-002 | Equipment Assignment.`project_id` equals the `project_id` on the Job Site resolved by `job_site_id`. | Hard Reject |
+| EQA-003 | For rows with the same `equipment_id`, periods overlap when `first_start < second_end` and `second_start < first_end`; open-ended null ends extend indefinitely. No overlapping pair is allowed. | Hard Reject |
+| EQA-004 | For rows with the same `equipment_id`, an end timestamp exactly equal to another start timestamp is an accepted adjacent boundary and is logged. | Informational |
 
-- Business Purpose: Represents the classification of equipment for planning, assignment, and safety rules.
-- Grain: One row per equipment type.
-- Business Key: Equipment type code, supplied by the source system and immutable.
-- Candidate Primary Key: Equipment type identifier.
-- Required Fields: equipment_type_code, equipment_type_name.
-- Nullable Fields: equipment_type_description, equipment_category.
-- Foreign Keys: None.
-- Accepted Values or Controlled Domains: equipment_type_code and equipment_type_name should be controlled and business-readable.
-- Validation Rules:
+### Safety Threshold
 
-| Rule | Enforcement |
-| --- | --- |
-| Equipment type code is required and cannot be null. | Hard Reject |
-| Duplicate equipment type business keys are not allowed. | Hard Reject |
-| Equipment type name should not be blank. | Warn and Flag |
+- Grain: one row per active or historical safety-threshold rule.
+- Business key and candidate primary key: `threshold_id`.
+- Required fields: `threshold_id`, `activity_id`, `metric_code`, `comparison_operator`, `unit`, `threshold_value_or_code_set`, `severity`, `recommended_action_code`, `effective_start_date`, `is_active`, `override_flag`.
+- Nullable/optional fields: `equipment_type_id`, `effective_end_date`, `threshold_value`, `weather_code_set`.
+- Foreign keys: `activity_id` -> Activity.`activity_id`; when populated, `equipment_type_id` -> Equipment Type.`equipment_type_id`.
+- Verified generated structures: `WEATHER_CODE` uses operator `IN`, unit `wmo_code`, populated `weather_code_set`, and empty `threshold_value`; generated numeric metrics use `>=`, a populated `threshold_value`, and empty `weather_code_set`. No complete metric/operator/unit registry exists.
 
-- Update Behavior: Equipment type definitions are stable and should not be altered in a way that changes historical meaning.
+| Rule ID | Deterministic validation rule | Enforcement |
+| --- | --- | --- |
+| SFT-001 | `effective_end_date` is null/empty or is on or after `effective_start_date`. Date parsing policy is unresolved. | Hard Reject |
+| SFT-002 | Active periods do not overlap for equal (`activity_id`, `metric_code`, `severity`, `equipment_type_id`), treating null/empty `equipment_type_id` as the same scope and null/empty `effective_end_date` as open-ended. | Hard Reject |
+| SFT-003 | For the verified `WEATHER_CODE` structure, `comparison_operator` equals `IN`; for other generated metrics it equals `>=`. A complete approved metric/operator registry is unresolved. | Hard Reject |
+| SFT-004 | When `metric_code` is `WEATHER_CODE`, `weather_code_set` is populated and `threshold_value` is null/empty. | Hard Reject |
+| SFT-005 | When `metric_code` is not `WEATHER_CODE`, `threshold_value` is populated and parseable as numeric and `weather_code_set` is null/empty. Unit compatibility and numeric bounds require an unresolved metric/unit registry. | Hard Reject |
+| SFT-006 | `recommended_action_code` is not null and is not the empty string. | Hard Reject |
+| SFT-007 | When `severity` is exactly `CRITICAL`, `override_flag` is boolean `true`. | Hard Reject |
+| SFT-008 | Two simultaneously active rules with equal (`activity_id`, `metric_code`, `severity`, `equipment_type_id`) and different operator, unit, threshold payload, action, or override values are conflicting and are rejected. | Hard Reject |
 
-## Equipment Contract
+## Cross-entity validation rules
 
-- Business Purpose: Represents a physical asset that can be assigned to job sites and schedules.
-- Grain: One row per equipment asset.
-- Business Key: Equipment code, supplied by the source system and immutable.
-- Candidate Primary Key: Equipment identifier.
-- Required Fields: equipment_code, equipment_type_id, equipment_status.
-- Nullable Fields: serial_number, asset_tag, equipment_description.
-- Foreign Keys: equipment_type_id -> Equipment Type.
-- Accepted Values or Controlled Domains: equipment_status should use a controlled domain such as Available, In Use, Out of Service, or Retired.
-- Validation Rules:
+These retain the prior contract's separate cross-entity rules even when an entity rule covers the same condition. They are separate validation-result obligations and therefore receive distinct IDs.
 
-| Rule | Enforcement |
-| --- | --- |
-| Equipment code is required and cannot be null. | Hard Reject |
-| Equipment must reference a valid equipment type. | Hard Reject |
-| Duplicate equipment business keys are not allowed. | Hard Reject |
-| Status should be populated with a controlled value. | Warn and Flag |
+| Rule ID | Deterministic validation rule | Enforcement |
+| --- | --- | --- |
+| XEN-001 | Each of the 19 relationships in the foreign-key register resolves; nullable relationships are checked only when populated. | Hard Reject |
+| XEN-002 | Field Schedule.`project_id` equals the `project_id` of the Job Site resolved by Field Schedule.`job_site_id`. | Hard Reject |
+| XEN-003 | Equipment Assignment.`project_id` equals the `project_id` of the Job Site resolved by Equipment Assignment.`job_site_id`. | Hard Reject |
+| XEN-004 | Every populated Field Schedule.`rescheduled_from_schedule_id` resolves, is not a self-reference, and predecessor traversal does not revisit an ID. | Hard Reject |
+| XEN-005 | No two Equipment Assignment periods for the same `equipment_id` overlap under the interval definition in EQA-003. | Hard Reject |
+| XEN-006 | Safety Threshold active periods do not overlap for equal (`activity_id`, `metric_code`, `severity`, `equipment_type_id`) under SFT-002. | Hard Reject |
+| XEN-007 | Job Site.`weather_location_code` is exactly one of `TX-DAL`, `TX-HOU`, or `TX-AUS`. | Hard Reject |
+| XEN-008 | When Crew.`crew_lead_employee_id` is populated and resolves, differing Crew.`home_office_id` and Employee.`home_office_id` produces a warning. | Warn and Flag |
+| XEN-009 | Within each entity, duplicate values are rejected for these business keys: Region.`region_code`, Office.`office_code`, Employee.`employee_number`, Project.`project_code`, Job Site.`job_site_code`, Crew.`crew_code`, Activity.`activity_code`, Equipment Type.`equipment_type_code`, and Equipment.`equipment_code`; source identifiers are unique for Field Schedule, Equipment Assignment, and Safety Threshold. | Hard Reject |
+| XEN-010 | A record is rejected when null or empty in this Critical value set: every entity's primary/source identifier; all required FK columns; Region.`region_code`; Office.`office_code`; Employee.`employee_number`, `employee_name`, `employment_status`; Project.`project_code`, `status`; Job Site.`job_site_code`, `job_site_name`, `weather_location_code`; Crew.`crew_code`, `crew_status`; Activity.`activity_code`; Field Schedule timestamps/date/hour/size/status fields; Equipment Type.`equipment_type_code`; Equipment.`equipment_code`; Equipment Assignment.`assignment_start_timestamp`; and all Safety Threshold required fields. Fields governed by explicit missing-value Warning rules are excluded. Silver does not fill missing values. | Hard Reject |
 
-- Update Behavior: Equipment identity remains stable; operational status changes are tracked without changing the original business key.
+## Foreign-key relationship register (verified count: 19)
 
-## Equipment Assignment Contract
+| # | Source relationship | Requirement |
+| ---: | --- | --- |
+| 1 | Office.`region_id` -> Region.`region_id` | Required |
+| 2 | Employee.`home_office_id` -> Office.`office_id` | Required |
+| 3 | Project.`office_id` -> Office.`office_id` | Required |
+| 4 | Project.`project_manager_employee_id` -> Employee.`employee_id` | Required |
+| 5 | Project.`field_manager_employee_id` -> Employee.`employee_id` | Required |
+| 6 | Job Site.`project_id` -> Project.`project_id` | Required |
+| 7 | Crew.`home_office_id` -> Office.`office_id` | Required |
+| 8 | Crew.`crew_lead_employee_id` -> Employee.`employee_id` | Conditional when populated |
+| 9 | Field Schedule.`project_id` -> Project.`project_id` | Required |
+| 10 | Field Schedule.`job_site_id` -> Job Site.`job_site_id` | Required |
+| 11 | Field Schedule.`crew_id` -> Crew.`crew_id` | Required |
+| 12 | Field Schedule.`activity_id` -> Activity.`activity_id` | Required |
+| 13 | Field Schedule.`rescheduled_from_schedule_id` -> Field Schedule.`field_schedule_id` | Conditional when populated; self-reference |
+| 14 | Equipment.`equipment_type_id` -> Equipment Type.`equipment_type_id` | Required |
+| 15 | Equipment Assignment.`equipment_id` -> Equipment.`equipment_id` | Required |
+| 16 | Equipment Assignment.`job_site_id` -> Job Site.`job_site_id` | Required |
+| 17 | Equipment Assignment.`project_id` -> Project.`project_id` | Required |
+| 18 | Safety Threshold.`activity_id` -> Activity.`activity_id` | Required |
+| 19 | Safety Threshold.`equipment_type_id` -> Equipment Type.`equipment_type_id` | Conditional when populated |
 
-- Business Purpose: Represents the assignment of equipment to a project and job site over a defined time window.
-- Grain: One row per equipment assignment period.
-- Business Key: The immutable assignment identifier supplied by the source system.
-- Candidate Primary Key: Assignment identifier.
-- Required Fields: assignment_id, equipment_id, job_site_id, project_id, assignment_start_timestamp.
-- Nullable Fields: assignment_end_timestamp, assignment_note.
-- Foreign Keys: equipment_id -> Equipment; job_site_id -> Job Site; project_id -> Project.
-- Accepted Values or Controlled Domains: assignment timestamps must be valid business timestamps.
-- Validation Rules:
+The following are cross-entity consistency checks, not additional foreign keys: schedule project/site consistency; assignment project/site consistency; crew-lead office consistency; completed/rescheduled successor and lineage-chain semantics; assignment interval overlap; and safety-threshold effective-period conflict/overlap.
 
-| Rule | Enforcement |
-| --- | --- |
-| assignment_end_timestamp must be greater than assignment_start_timestamp when populated. | Hard Reject |
-| project_id must match the Project associated with job_site_id. | Hard Reject |
-| The same equipment cannot have overlapping assignment periods. | Hard Reject |
-| Adjacent assignment boundaries are valid. | Informational |
+## Silver validation responsibilities
 
-- Update Behavior: Assignment records preserve the historical record of equipment usage. A new assignment row is created for a new period rather than overwriting the prior period.
+- Critical failures are excluded from accepted Silver, written to quarantine, and logged.
+- Warnings remain eligible for accepted Silver with the source value unchanged and the warning attached/logged.
+- Info outcomes remain eligible; only explicitly defined meaning-preserving normalization is permitted.
+- Every outcome uses the stable rule ID and error code in `silver-validation-rule-mapping-matrix.md`.
+- Bronze source values and lineage are preserved. Missing business values are never invented.
 
-## Safety Threshold Contract
+## Locked implementation policies for the first Silver increment
 
-- Business Purpose: Defines the business rules that determine when a field activity is above or below an acceptable threshold for a metric or weather condition.
-- Grain: One row per active or historical safety threshold rule.
-- Business Key: The immutable threshold identifier supplied by the source system.
-- Candidate Primary Key: Threshold identifier.
-- Required Fields: threshold_id, activity_id, metric_code, comparison_operator, unit, threshold_value_or_code_set, severity, recommended_action_code, effective_start_date, is_active, override_flag.
-- Nullable Fields: equipment_type_id, effective_end_date, threshold_value, weather_code_set.
-- Foreign Keys: activity_id -> Activity; equipment_type_id -> Equipment Type when populated.
-- Accepted Values or Controlled Domains: comparison_operator must be compatible with the threshold structure; weather rules use weather_code_set rather than numeric min/max values; numeric rules use compatible units and valid numeric bounds; critical override rules set override_flag = true.
-- Validation Rules:
+- **Empty strings:** only `null`/Python `None` and the exact empty string `""` are missing. Whitespace-only strings are preserved and are not trimmed or silently treated as empty.
+- **Dates and timestamps:** current generated ISO-compatible text is parsed explicitly with Python ISO date/timestamp parsing. A malformed required date or timestamp is Critical. No time-zone conversion is performed, and original text is retained in the source record.
+- **Numeric comparison:** derived numeric equality uses decimal conversion from source text and an absolute tolerance of `0.000001`. It does not use exact binary floating-point equality.
+- **Multi-record quarantine:** all records participating in duplicate keys, overlaps, cycles, or conflicting sets are quarantined unless a future approved rule explicitly defines a survivor.
 
-| Rule | Enforcement |
-| --- | --- |
-| effective_end_date must be null or on or after effective_start_date. | Hard Reject |
-| Active effective periods cannot overlap for the same activity, metric, severity, and optional equipment type. | Hard Reject |
-| comparison_operator must be compatible with the threshold structure. | Hard Reject |
-| Weather code rules must use weather_code_set rather than numeric min/max values. | Hard Reject |
-| Numeric rules must use compatible units and valid numeric bounds. | Hard Reject |
-| recommended_action_code is required. | Hard Reject |
-| Critical override rules must set override_flag = true. | Hard Reject |
-| Ambiguous or conflicting active safety rules are not allowed. | Hard Reject |
+## Deferred Version 2 rules
 
-- Update Behavior: Thresholds preserve historical validity periods. New rules are added without deleting prior active versions, and inactive versions remain visible for traceability.
-
-## Cross-Entity Validation Rules
-
-| Rule | Enforcement |
-| --- | --- |
-| Foreign keys must resolve to existing records in the referenced entities. | Hard Reject |
-| Field Schedule project_id must be consistent with the project associated with its job_site_id. | Hard Reject |
-| Equipment Assignment project_id must be consistent with the project associated with its job_site_id. | Hard Reject |
-| Reschedule lineage must preserve a valid chain and must not self-reference or cycle. | Hard Reject |
-| Equipment assignment overlap for the same equipment is not allowed. | Hard Reject |
-| Safety threshold effective periods must not overlap for the same activity, metric, severity, and optional equipment type. | Hard Reject |
-| Weather location must be restricted to TX-DAL, TX-HOU, or TX-AUS. | Hard Reject |
-| Cross-office crew assignment is allowed only as a warning condition. | Warn and Flag |
-| Duplicate business keys across records of the same entity are not allowed. | Hard Reject |
-| Missing or ambiguous business values that are required by the source contract must not be silently corrected. | Hard Reject |
-
-## Silver Validation Responsibilities
-
-Silver validation is responsible for accepting, rejecting, and flagging records according to these contracts.
-
-- Accepted records must satisfy all Hard Reject rules and have no unresolved Warn and Flag issues.
-- Rejected records must be excluded from downstream use until corrected or otherwise approved by the business owner.
-- Warning flags must be preserved as validation outcomes so that downstream consumers can distinguish between clean, questionable, and rejected data.
-- Validation reason codes should be attached to each outcome so that the reason for acceptance, rejection, or warning is traceable.
-- Lineage metadata must be preserved for rescheduled and historical records so the current record can be traced to its predecessor and successor rows.
-- Bronze source values must be preserved for traceability; Silver must not overwrite or fabricate missing business values.
-- Silver may standardize or normalize values only when the normalization is clearly defined and does not change the source business meaning.
-
-## Deferred Version 2 Rules
-
-The following rules are intentionally deferred to a later phase because they are not required for Version 1 source contracts:
-
-- Direct weather requests for each job site.
-- Forecast accuracy measurement using observed weather.
-- More advanced employee-role eligibility rules beyond the initial crew-lead rule.
-- Explicit equipment transit or handoff states.
-- Multi-crew schedules or shared equipment allocation if the business model requires those patterns later.
-
-This document governs Phase 10 synthetic data generation and Silver validation for the approved operational source model.
+Direct job-site weather requests, observed-weather forecast accuracy, advanced employee-role eligibility, explicit equipment transit/handoff states, and multi-crew/shared-equipment allocation remain deferred. This reconciliation does not add them.

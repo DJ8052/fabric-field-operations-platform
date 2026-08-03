@@ -48,4 +48,11 @@ This project demonstrates how an organization can build a modern analytics platf
 
 ## Project Status
 
+- Phase 10, Step 2 is complete.
+- Phase 10, Step 3 design gate is complete; Silver implementation has begun with the master-entity validation foundation.
+- Complex Field Schedule lineage, Equipment Assignment overlap, and Safety Threshold overlap/conflict rules remain pending.
+- `docs/silver-validation-rule-mapping-matrix.md` remains the implementation authority.
+- Bronze and Silver remain Python/PySpark-based. Gold will use dbt for dimensional models, tests, lineage, and documentation.
+- As with Bronze, reusable Silver code is built as a Python wheel and installed in the Fabric Environment; notebooks import that package and remain orchestration-focused.
+
 🚧 In Development
