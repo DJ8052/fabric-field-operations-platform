@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import ast
 from pathlib import Path
 
 
@@ -39,7 +40,38 @@ def test_notebook_registers_negative_acceptance_delta_outputs() -> None:
     assert 'quarantine_schema = "quarantine_negative"' in source
     assert 'validation_table = "validation_negative.operational_results"' in source
     assert source.count(".saveAsTable(") == 3
-    assert ".write.save(" not in source
-    assert '.option("path", f"{runtime.silver_root}/{entity_output.entity}")' in source
-    assert '.option("path", f"{runtime.quarantine_root}/{entity_output.entity}")' in source
-    assert '.option("path", runtime.validation_results_root)' in source
+    assert '.option("path"' not in source
+    assert 'accepted_writer.save(f"{runtime.silver_root}/{entity_output.entity}")' in source
+    assert 'quarantine_writer.save(f"{runtime.quarantine_root}/{entity_output.entity}")' in source
+    assert "results_writer.save(runtime.validation_results_root)" in source
+    assert '"critical_rule_ids": json.dumps(' in source
+    assert '"all_rule_ids": json.dumps(' in source
+
+
+def test_negative_acceptance_detection_matches_pipeline_roots() -> None:
+    source = NOTEBOOK.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    function = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "is_negative_acceptance_run"
+    )
+    namespace: dict = {}
+    exec(compile(ast.Module(body=[function], type_ignores=[]), str(NOTEBOOK), "exec"), namespace)
+    detect = namespace["is_negative_acceptance_run"]
+
+    assert detect(
+        "Tables/silver_negative",
+        "Tables/quarantine_negative",
+        "Tables/validation_negative/operational_results",
+    )
+    assert detect(
+        "Tables/silver_negative/",
+        "Tables/quarantine_negative/",
+        "Tables/validation_negative/operational_results/",
+    )
+    assert not detect(
+        "Tables/silver/operations",
+        "Tables/quarantine/operations",
+        "Tables/validation/operational_results",
+    )

@@ -91,13 +91,27 @@ print(
     f"silver_run_id={runtime.silver_run_id}"
 )
 
-negative_acceptance_run = any(
-    "acceptance_negative" in root.lower()
-    for root in (
-        runtime.silver_root,
-        runtime.quarantine_root,
-        runtime.validation_results_root,
+def is_negative_acceptance_run(
+    silver_root: str,
+    quarantine_root: str,
+    validation_results_root: str,
+) -> bool:
+    """Identify the explicitly isolated negative-acceptance destinations."""
+    configured_roots = tuple(
+        root.rstrip("/").lower()
+        for root in (silver_root, quarantine_root, validation_results_root)
     )
+    return configured_roots == (
+        "tables/silver_negative",
+        "tables/quarantine_negative",
+        "tables/validation_negative/operational_results",
+    )
+
+
+negative_acceptance_run = is_negative_acceptance_run(
+    runtime.silver_root,
+    runtime.quarantine_root,
+    runtime.validation_results_root,
 )
 
 spark.sql("CREATE SCHEMA IF NOT EXISTS silver_negative")
@@ -108,12 +122,6 @@ if negative_acceptance_run:
     silver_schema = "silver_negative"
     quarantine_schema = "quarantine_negative"
     validation_table = "validation_negative.operational_results"
-else:
-    silver_schema = "silver"
-    quarantine_schema = "quarantine"
-    validation_table = "validation.operational_results"
-    for schema_name in (silver_schema, quarantine_schema, "validation"):
-        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
 
 def bronze_path(entity: str) -> str:
     return f"{runtime.bronze_root}/{entity}/ingestion_date={runtime.ingestion_date}/run_{runtime.source_run_id}.csv"
@@ -144,12 +152,11 @@ for entity_output in output.entities:
         list(entity_output.accepted_records),
         schema=source_frames[entity_output.entity].schema,
     )
-    (
-        accepted_frame.write.format("delta")
-        .mode("overwrite")
-        .option("path", f"{runtime.silver_root}/{entity_output.entity}")
-        .saveAsTable(f"{silver_schema}.{entity_output.entity}")
-    )
+    accepted_writer = accepted_frame.write.format("delta").mode("overwrite")
+    if negative_acceptance_run:
+        accepted_writer.saveAsTable(f"{silver_schema}.{entity_output.entity}")
+    else:
+        accepted_writer.save(f"{runtime.silver_root}/{entity_output.entity}")
     if entity_output.quarantine_records:
         quarantine_rows = [
             {
@@ -158,28 +165,34 @@ for entity_output in output.entities:
                 "record_id": item.record_id,
                 "source_identifier": item.source_identifier,
                 "source_record_json": json.dumps(item.source_record, default=str, sort_keys=True),
-                "critical_rule_ids": [result.rule_id for result in item.critical_violations],
-                "all_rule_ids": [result.rule_id for result in item.all_results],
+                "critical_rule_ids": json.dumps(
+                    [result.rule_id for result in item.critical_violations]
+                ),
+                "all_rule_ids": json.dumps(
+                    [result.rule_id for result in item.all_results]
+                ),
             }
             for item in entity_output.quarantine_records
         ]
-        (
-            spark.createDataFrame(quarantine_rows).write.format("delta")
-            .mode("append")
-            .option("path", f"{runtime.quarantine_root}/{entity_output.entity}")
-            .saveAsTable(f"{quarantine_schema}.{entity_output.entity}")
+        quarantine_writer = (
+            spark.createDataFrame(quarantine_rows).write.format("delta").mode("append")
         )
+        if negative_acceptance_run:
+            quarantine_writer.saveAsTable(f"{quarantine_schema}.{entity_output.entity}")
+        else:
+            quarantine_writer.save(f"{runtime.quarantine_root}/{entity_output.entity}")
     if entity_output.validation_results:
         result_rows = [
             {**asdict(result), "source_record": json.dumps(result.source_record, default=str, sort_keys=True)}
             for result in entity_output.validation_results
         ]
-        (
-            spark.createDataFrame(result_rows).write.format("delta")
-            .mode("append")
-            .option("path", runtime.validation_results_root)
-            .saveAsTable(validation_table)
+        results_writer = (
+            spark.createDataFrame(result_rows).write.format("delta").mode("append")
         )
+        if negative_acceptance_run:
+            results_writer.saveAsTable(validation_table)
+        else:
+            results_writer.save(runtime.validation_results_root)
     print(asdict(entity_output.summary))
 
 print(asdict(output.summary))

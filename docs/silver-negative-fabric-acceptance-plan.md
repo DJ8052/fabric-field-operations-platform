@@ -6,14 +6,15 @@ This workflow proves the three Silver disposition paths with deterministic repos
 
 ## Isolation and identifiers
 
+- The notebook's default Lakehouse must have Lakehouse schemas enabled; the three `_negative` schemas are created by the Silver notebook before it writes tables.
 - Clean source remains at `Files/source/operations`.
 - Negative source is uploaded to `Files/source/operations_negative`.
 - Use a distinct Bronze run ID such as `negative-acceptance-v1`.
 - Always pass `source_run_id=negative-acceptance-v1` explicitly to Silver. Do not allow latest-run discovery to select acceptance data.
 - Use isolated Silver paths because the Silver notebook overwrites accepted entity outputs:
-  - `silver_root=Tables/acceptance_negative/silver/operations`
-  - `quarantine_root=Tables/acceptance_negative/quarantine/operations`
-  - `validation_results_root=Tables/acceptance_negative/validation/operational_results`
+  - `silver_root=Tables/silver_negative`
+  - `quarantine_root=Tables/quarantine_negative`
+  - `validation_results_root=Tables/validation_negative/operational_results`
 - Do not point a normal pipeline at the negative source root or negative Silver roots.
 
 ## Scenario inventory
@@ -52,9 +53,9 @@ The command writes 12 flat CSVs plus `expected-results.json` under `data/negativ
    - `ingestion_date=<same acceptance date>`
    - `source_run_id=negative-acceptance-v1`
    - `silver_run_id=silver-negative-acceptance-v1`
-   - `silver_root=Tables/acceptance_negative/silver/operations`
-   - `quarantine_root=Tables/acceptance_negative/quarantine/operations`
-   - `validation_results_root=Tables/acceptance_negative/validation/operational_results`
+   - `silver_root=Tables/silver_negative`
+   - `quarantine_root=Tables/quarantine_negative`
+   - `validation_results_root=Tables/validation_negative/operational_results`
 6. Capture the notebook summary and query the isolated outputs below.
 
 The Bronze notebook retains its clean default `Files/source/operations`; negative behavior is selected only by the parameter.
@@ -70,34 +71,34 @@ GROUP BY status;
 
 -- Findings: Critical=6, Warning=1, Info=2.
 SELECT severity, COUNT(*) AS finding_count
-FROM delta.`Tables/acceptance_negative/validation/operational_results`
+FROM validation_negative.operational_results
 WHERE run_id = 'silver-negative-acceptance-v1'
 GROUP BY severity;
 
 -- Exact result evidence.
 SELECT entity, record_id, rule_id, error_code, severity, outcome
-FROM delta.`Tables/acceptance_negative/validation/operational_results`
+FROM validation_negative.operational_results
 WHERE run_id = 'silver-negative-acceptance-v1'
 ORDER BY entity, record_id, rule_id;
 
 -- Warning record remains accepted.
 SELECT region_id, region_name
-FROM delta.`Tables/acceptance_negative/silver/operations/regions`
+FROM silver_negative.regions
 WHERE region_id = '1';
 
 -- Info records remain accepted.
 SELECT assignment_id, equipment_id, assignment_start_timestamp, assignment_end_timestamp
-FROM delta.`Tables/acceptance_negative/silver/operations/equipment_assignments`
+FROM silver_negative.equipment_assignments
 WHERE assignment_id IN ('1', '81');
 
 -- Critical Job Site record is quarantined.
 SELECT record_id, critical_rule_ids, all_rule_ids, source_record_json
-FROM delta.`Tables/acceptance_negative/quarantine/operations/job_sites`
+FROM quarantine_negative.job_sites
 WHERE run_id = 'silver-negative-acceptance-v1';
 
 -- Both overlap participants are quarantined.
 SELECT record_id, critical_rule_ids, all_rule_ids, source_record_json
-FROM delta.`Tables/acceptance_negative/quarantine/operations/equipment_assignments`
+FROM quarantine_negative.equipment_assignments
 WHERE run_id = 'silver-negative-acceptance-v1'
 ORDER BY record_id;
 ```
@@ -106,6 +107,6 @@ Also verify accepted Job Sites contain 119 rows and accepted Equipment Assignmen
 
 ## Cleanup and retention
 
-Retain the generated manifest, Fabric notebook output, monitoring query results, and validation query results as acceptance evidence. Negative Bronze files and isolated Delta outputs may be retained under their clearly named acceptance roots according to the project retention policy. If removal is approved later, target only the explicit `operations_negative` and `acceptance_negative` paths. Never delete or overwrite the clean source or clean Silver roots.
+Retain the generated manifest, Fabric notebook output, monitoring query results, and validation query results as acceptance evidence. Negative Bronze files and isolated managed Delta tables may be retained under their clearly named schemas according to the project retention policy. If removal is approved later, target only `operations_negative` and the three `_negative` schemas. Never delete or overwrite the clean source or clean Silver tables.
 
 Latest-run discovery is appropriate for manual clean execution but unsafe for this acceptance run. A negative run can be the latest successful Bronze run, so both acceptance and subsequent clean executions should supply explicit `source_run_id` values until a clean run is again known to be latest.
