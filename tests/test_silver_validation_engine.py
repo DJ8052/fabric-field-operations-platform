@@ -3,7 +3,12 @@ from __future__ import annotations
 from dataclasses import asdict
 from datetime import datetime, timezone
 
-from operational_silver_validation import resolve_runtime_config, validate_master_entities
+from operational_silver_validation import (
+    ALL_ENTITIES,
+    resolve_runtime_config,
+    validate_master_entities,
+    validate_operational_entities,
+)
 from operational_silver_validation.relationship_validations import FOREIGN_KEY_RELATIONSHIPS
 from test_silver_master_entities import clean_dataset
 
@@ -21,6 +26,8 @@ def test_full_foreign_key_registry_contains_19_relationships() -> None:
 
 
 def test_notebook_facing_public_imports_and_runtime_parameters() -> None:
+    assert len(ALL_ENTITIES) == 12
+    assert callable(validate_operational_entities)
     supplied = resolve_runtime_config({
         "ingestion_date": "2026-08-03",
         "source_run_id": "pipeline-source",

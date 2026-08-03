@@ -7,7 +7,7 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 import json
 
-from operational_silver_validation import MASTER_ENTITIES, resolve_runtime_config, validate_master_entities
+from operational_silver_validation import ALL_ENTITIES, resolve_runtime_config, validate_operational_entities
 
 
 # Fabric pipeline/notebook parameters may supply any of these lowercase names.
@@ -29,7 +29,7 @@ def bronze_path(entity: str) -> str:
 datasets = {}
 source_identifiers = {}
 source_frames = {}
-for entity in MASTER_ENTITIES:
+for entity in ALL_ENTITIES:
     path = bronze_path(entity)
     source_identifiers[entity] = path
     # Bronze CSV values remain strings so validation and quarantine preserve
@@ -39,7 +39,7 @@ for entity in MASTER_ENTITIES:
     datasets[entity] = [row.asDict(recursive=True) for row in source_frame.collect()]
 
 validation_timestamp = datetime.now(timezone.utc)
-output = validate_master_entities(
+output = validate_operational_entities(
     datasets,
     runtime.silver_run_id,
     source_identifiers=source_identifiers,

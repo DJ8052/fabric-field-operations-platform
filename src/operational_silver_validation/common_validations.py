@@ -68,3 +68,11 @@ def decimal_equal(left: Any, right: Any, *, tolerance: Decimal = NUMERIC_ABSOLUT
         return False
     return abs(left_decimal - right_decimal) <= tolerance
 
+
+def parse_decimal(value: Any) -> Decimal | None:
+    """Parse a finite decimal without changing the source value."""
+    try:
+        parsed = Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    return parsed if parsed.is_finite() else None

@@ -21,6 +21,8 @@ def _matrix_metadata() -> dict[str, tuple[str, str, str]]:
 
 def test_registry_ids_and_error_codes_are_unique() -> None:
     rules = tuple(RULE_REGISTRY.values())
+    assert len(rules) == 65
+    assert "FSD-008" not in RULE_REGISTRY
     assert len(rules) == len({rule.rule_id for rule in rules})
     assert len(rules) == len({rule.error_code for rule in rules})
     assert {rule.severity for rule in rules} <= {"Critical", "Warning", "Info"}

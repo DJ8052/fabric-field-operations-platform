@@ -1,4 +1,4 @@
-"""Deterministic, Fabric-independent master-entity validation engine."""
+"""Deterministic, Fabric-independent operational validation engine."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from time import perf_counter
 from typing import Any, Callable, Mapping, Sequence
 
-from .entity_validations import MASTER_ENTITIES, PRIMARY_KEYS, entity_findings
+from .entity_validations import ALL_ENTITIES, MASTER_ENTITIES, PRIMARY_KEYS, entity_findings
 from .models import EntitySummary, EntityValidationOutput, RunSummary, ValidationResult, ValidationRunOutput
 from .quarantine import build_quarantine_record
 from .relationship_validations import relationship_findings
@@ -24,18 +24,17 @@ def _record_id(entity: str, record: Mapping[str, Any], index: int) -> str:
     return str(value) if value not in (None, "") else f"row:{index}"
 
 
-def validate_master_entities(dataset: Mapping[str, Sequence[Mapping[str, Any]]], run_id: str, *, source_identifiers: Mapping[str, str] | None = None, clock: Callable[[], datetime] = _utc_now, timer: Callable[[], float] = perf_counter) -> ValidationRunOutput:
-    """Validate all first-slice entities and return accepted/quarantine/audit outputs."""
-    missing = [entity for entity in MASTER_ENTITIES if entity not in dataset]
+def _validate_entities(dataset: Mapping[str, Sequence[Mapping[str, Any]]], run_id: str, entities: tuple[str, ...], *, source_identifiers: Mapping[str, str] | None, clock: Callable[[], datetime], timer: Callable[[], float]) -> ValidationRunOutput:
+    missing = [entity for entity in entities if entity not in dataset]
     if missing:
-        raise ValueError(f"dataset is missing master entities: {', '.join(missing)}")
+        raise ValueError(f"dataset is missing required entities: {', '.join(missing)}")
     if not isinstance(run_id, str) or not run_id:
         raise ValueError("run_id must be a non-empty string")
     run_started = timer()
     source_identifiers = source_identifiers or {}
-    findings = [finding for entity in MASTER_ENTITIES for finding in entity_findings(entity, dataset[entity])]
-    findings.extend(relationship_findings(dataset, set(MASTER_ENTITIES)))
-    findings.sort(key=lambda item: (MASTER_ENTITIES.index(item.entity), item.record_index, item.rule_id, item.message))
+    findings = [finding for entity in entities for finding in entity_findings(entity, dataset[entity])]
+    findings.extend(relationship_findings(dataset, set(entities)))
+    findings.sort(key=lambda item: (entities.index(item.entity), item.record_index, item.rule_id, item.message))
     timestamp = clock()
     by_record: dict[tuple[str, int], list[ValidationResult]] = defaultdict(list)
     for finding in findings:
@@ -57,7 +56,7 @@ def validate_master_entities(dataset: Mapping[str, Sequence[Mapping[str, Any]]],
         )
         by_record[(finding.entity, finding.record_index)].append(result)
     outputs: list[EntityValidationOutput] = []
-    for entity in MASTER_ENTITIES:
+    for entity in entities:
         started = timer()
         accepted: list[dict[str, Any]] = []
         quarantined = []
@@ -88,3 +87,13 @@ def validate_master_entities(dataset: Mapping[str, Sequence[Mapping[str, Any]]],
     status = "FAILED" if rows_quarantined and not rows_accepted else "PARTIAL_SUCCESS" if rows_quarantined else "SUCCEEDED"
     summary = RunSummary(rows_read, rows_accepted, rows_quarantined, critical_count, warning_count, info_count, max(0.0, timer() - run_started), status)
     return ValidationRunOutput(run_id, tuple(outputs), summary)
+
+
+def validate_master_entities(dataset: Mapping[str, Sequence[Mapping[str, Any]]], run_id: str, *, source_identifiers: Mapping[str, str] | None = None, clock: Callable[[], datetime] = _utc_now, timer: Callable[[], float] = perf_counter) -> ValidationRunOutput:
+    """Validate the original master-entity slice; retained as a stable public API."""
+    return _validate_entities(dataset, run_id, MASTER_ENTITIES, source_identifiers=source_identifiers, clock=clock, timer=timer)
+
+
+def validate_operational_entities(dataset: Mapping[str, Sequence[Mapping[str, Any]]], run_id: str, *, source_identifiers: Mapping[str, str] | None = None, clock: Callable[[], datetime] = _utc_now, timer: Callable[[], float] = perf_counter) -> ValidationRunOutput:
+    """Validate all 12 implemented operational entities in deterministic order."""
+    return _validate_entities(dataset, run_id, ALL_ENTITIES, source_identifiers=source_identifiers, clock=clock, timer=timer)

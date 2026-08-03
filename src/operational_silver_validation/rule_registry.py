@@ -1,4 +1,4 @@
-"""Single source of metadata for rules implemented in the master-entity slice."""
+"""Single source of metadata for implemented operational Silver rules."""
 
 from __future__ import annotations
 
@@ -47,7 +47,33 @@ _RULES = (
     _rule("EQP-002", "equipment", "Critical", _Q, "ERR_EQUIPMENT_TYPE_FK_INVALID"),
     _rule("EQP-003", "equipment", "Critical", "Quarantine duplicate-key records and log.", "ERR_EQUIPMENT_CODE_DUPLICATE"),
     _rule("EQP-004", "equipment", "Warning", _W, "WARN_EQUIPMENT_STATUS_MISSING_OR_DOMAIN_UNRESOLVED"),
+    _rule("FSD-001", "field_schedules", "Critical", "Design unresolved for parsing policy; once approved, quarantine failures and log.", "ERR_FIELD_SCHEDULE_WINDOW_INVALID"),
+    _rule("FSD-002", "field_schedules", "Critical", _Q, "ERR_FIELD_SCHEDULE_DATE_MISMATCH"),
+    _rule("FSD-003", "field_schedules", "Warning", "Retain, attach warning, log; design decision required for exceptions.", "WARN_FIELD_SCHEDULE_CREW_HOURS_MISMATCH"),
+    _rule("FSD-004", "field_schedules", "Critical", _Q, "ERR_FIELD_SCHEDULE_LABOR_HOURS_INVALID"),
+    _rule("FSD-005", "field_schedules", "Critical", _Q, "ERR_FIELD_SCHEDULE_PROJECT_SITE_MISMATCH"),
+    _rule("FSD-006", "field_schedules", "Critical", "Quarantine affected lineage record(s) and log.", "ERR_COMPLETED_SCHEDULE_RESCHEDULED"),
+    _rule("FSD-007", "field_schedules", "Critical", "Quarantine affected lineage record(s) and log.", "ERR_RESCHEDULE_SUCCESSOR_MISSING"),
+    _rule("FSD-009", "field_schedules", "Critical", "Quarantine affected lineage record(s) and log.", "ERR_RESCHEDULE_LINEAGE_CYCLE"),
+    _rule("FSD-010", "field_schedules", "Critical", _Q, "ERR_FIELD_SCHEDULE_STATUS_INVALID"),
+    _rule("EQA-001", "equipment_assignments", "Critical", "Design unresolved for parsing policy; quarantine deterministic failures and log.", "ERR_EQUIPMENT_ASSIGNMENT_WINDOW_INVALID"),
+    _rule("EQA-002", "equipment_assignments", "Critical", _Q, "ERR_EQUIPMENT_ASSIGNMENT_PROJECT_SITE_MISMATCH"),
+    _rule("EQA-003", "equipment_assignments", "Critical", "Quarantine affected assignments and log.", "ERR_EQUIPMENT_ASSIGNMENT_OVERLAP"),
+    _rule("EQA-004", "equipment_assignments", "Info", "Retain unchanged and log accepted adjacency.", "INFO_EQUIPMENT_ASSIGNMENT_ADJACENT_BOUNDARY"),
+    _rule("SFT-001", "safety_thresholds", "Critical", "Design unresolved for parsing policy; quarantine deterministic failures and log.", "ERR_SAFETY_THRESHOLD_EFFECTIVE_DATES_INVALID"),
+    _rule("SFT-002", "safety_thresholds", "Critical", "Quarantine conflicting rules and log.", "ERR_SAFETY_THRESHOLD_ACTIVE_PERIOD_OVERLAP"),
+    _rule("SFT-003", "safety_thresholds", "Critical", "Design unresolved beyond verified metrics; quarantine known incompatibilities and log.", "ERR_SAFETY_THRESHOLD_OPERATOR_INCOMPATIBLE"),
+    _rule("SFT-004", "safety_thresholds", "Critical", _Q, "ERR_SAFETY_THRESHOLD_WEATHER_STRUCTURE_INVALID"),
+    _rule("SFT-005", "safety_thresholds", "Critical", "Design unresolved for unit/bounds; quarantine structural failures and log.", "ERR_SAFETY_THRESHOLD_NUMERIC_STRUCTURE_INVALID"),
+    _rule("SFT-006", "safety_thresholds", "Critical", _Q, "ERR_SAFETY_THRESHOLD_ACTION_REQUIRED"),
+    _rule("SFT-007", "safety_thresholds", "Critical", _Q, "ERR_SAFETY_THRESHOLD_CRITICAL_OVERRIDE_REQUIRED"),
+    _rule("SFT-008", "safety_thresholds", "Critical", "Quarantine conflicting rules and log.", "ERR_SAFETY_THRESHOLD_ACTIVE_RULE_CONFLICT"),
     _rule("XEN-001", "cross_entity", "Critical", "Quarantine record with invalid FK and log relationship detail.", "ERR_CROSS_ENTITY_FK_INVALID"),
+    _rule("XEN-002", "cross_entity", "Critical", _Q, "ERR_CROSS_FIELD_SCHEDULE_PROJECT_SITE_MISMATCH"),
+    _rule("XEN-003", "cross_entity", "Critical", _Q, "ERR_CROSS_EQUIPMENT_ASSIGNMENT_PROJECT_SITE_MISMATCH"),
+    _rule("XEN-004", "cross_entity", "Critical", "Quarantine affected lineage record(s) and log.", "ERR_CROSS_RESCHEDULE_LINEAGE_INVALID"),
+    _rule("XEN-005", "cross_entity", "Critical", "Quarantine affected assignments and log.", "ERR_CROSS_EQUIPMENT_ASSIGNMENT_OVERLAP"),
+    _rule("XEN-006", "cross_entity", "Critical", "Quarantine conflicting thresholds and log.", "ERR_CROSS_SAFETY_THRESHOLD_PERIOD_OVERLAP"),
     _rule("XEN-007", "cross_entity", "Critical", _Q, "ERR_CROSS_WEATHER_LOCATION_INVALID"),
     _rule("XEN-008", "cross_entity", "Warning", _W, "WARN_CROSS_CREW_LEAD_OFFICE_MISMATCH"),
     _rule("XEN-009", "cross_entity", "Critical", "Quarantine duplicate records and log entity/key.", "ERR_CROSS_ENTITY_BUSINESS_KEY_DUPLICATE"),
@@ -67,4 +93,3 @@ def get_rule(rule_id: str) -> RuleMetadata:
         return RULE_REGISTRY[rule_id]
     except KeyError as exc:
         raise ValueError(f"Rule {rule_id!r} is not implemented") from exc
-
