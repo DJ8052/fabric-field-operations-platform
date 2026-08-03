@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import csv
 import hashlib
 from copy import deepcopy
@@ -137,7 +138,33 @@ def test_negative_dataset_matches_manifest_end_to_end_without_source_changes() -
 
 
 def test_bronze_notebook_source_root_is_parameterized_with_clean_default() -> None:
-    source = (ROOT / "notebooks" / "NB_Operational_Bronze_Ingestion.py").read_text(encoding="utf-8")
+    notebook = ROOT / "notebooks" / "NB_Operational_Bronze_Ingestion.py"
+    source = notebook.read_text(encoding="utf-8")
     assert 'DEFAULT_SOURCE_ROOT = "Files/source/operations"' in source
     assert 'globals().get("source_root")' in source
     assert "source_paths(SOURCE_ROOT)" in source or "source_paths()" in source
+
+    tree = ast.parse(source)
+    parameter_assignments = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name)
+            and target.id in {"DEFAULT_SOURCE_ROOT", "requested_source_root", "SOURCE_ROOT"}
+            for target in node.targets
+        )
+    ]
+
+    def resolve(initial: dict | None = None) -> str:
+        namespace = dict(initial or {})
+        exec(
+            compile(ast.Module(body=parameter_assignments, type_ignores=[]), str(notebook), "exec"),
+            namespace,
+        )
+        return namespace["SOURCE_ROOT"]
+
+    assert resolve({"source_root": "Files/source/operations_negative"}) == "Files/source/operations_negative"
+    assert resolve({"source_root": "  Files/source/custom  "}) == "Files/source/custom"
+    assert resolve({"source_root": ""}) == "Files/source/operations"
+    assert resolve() == "Files/source/operations"
