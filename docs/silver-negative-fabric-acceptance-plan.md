@@ -4,6 +4,22 @@
 
 This workflow proves the three Silver disposition paths with deterministic repository-backed input: Critical findings quarantine and log, Warning findings remain accepted and log, and Info findings remain accepted and log. It does not attempt exhaustive rule coverage and does not include FSD-008.
 
+## Completion status
+
+The workflow passed its final Fabric acceptance gate on August 3, 2026.
+
+- Bronze run ID: `f60588ac-7be6-4398-81a4-4051549cdeb8`
+- Silver run ID: `silver-a29b2cd5-3aaf-4e4e-bc30-d10aab2a00fe-20260803T213322906968Z`
+- Negative source root: `Files/source/operations_negative`
+- Bronze entities succeeded: 12 of 12
+- Rows read / accepted / quarantined: 921 / 918 / 3
+- Critical / Warning / Info findings: 6 / 1 / 2
+- Quarantine tables: `quarantine_negative.job_sites`, `quarantine_negative.equipment_assignments`
+- Validation table: `validation_negative.operational_results`
+- Validation and quarantine behavior was verified end to end through the Fabric SQL analytics endpoint.
+
+The observed results matched `expected-results.json` exactly. This plan is retained as the reproducible acceptance procedure and evidence record.
+
 ## Isolation and identifiers
 
 - The notebook's default Lakehouse must have Lakehouse schemas enabled; the three `_negative` schemas are created by the Silver notebook before it writes tables.

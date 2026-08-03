@@ -49,8 +49,9 @@ This project demonstrates how an organization can build a modern analytics platf
 ## Project Status
 
 - Phase 10, Step 2 is complete.
-- Phase 10, Step 3 design gate is complete. The master and transactional Silver validation increments are implemented and locally tested.
-- FSD-008 remains pending because immutable prior-state/change-event evidence is not available in a single Bronze batch. Fabric deployment validation has not yet occurred.
+- Phase 10 Step 3 — Operational Silver Validation is complete. All 12 operational entities implement 65 of 66 mapped Version 1 rules, and both the clean baseline and deterministic negative acceptance workflow passed in Microsoft Fabric.
+- The verified negative Fabric run produced 921 rows read, 918 accepted, 3 quarantined, 6 Critical findings, 1 Warning finding, and 2 Info findings; quarantine and validation outputs were verified through the SQL analytics endpoint.
+- FSD-008 remains explicitly deferred because immutable prior-state/change-event evidence is not available in a single Bronze batch. Its future implementation is outside the completed Version 1 boundary.
 - `docs/silver-validation-rule-mapping-matrix.md` remains the implementation authority.
 - Bronze and Silver remain Python/PySpark-based. Gold will use dbt for dimensional models, tests, lineage, and documentation.
 - As with Bronze, reusable Silver code is built as a Python wheel and installed in the Fabric Environment; notebooks import that package and remain orchestration-focused.
