@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime, timezone
 import json
 
@@ -11,16 +11,85 @@ from operational_silver_validation import ALL_ENTITIES, resolve_runtime_config, 
 
 
 # Fabric pipeline/notebook parameters may supply any of these lowercase names.
-# Missing values use development defaults from runtime_config; no historical
-# production run is permanently selected by this notebook.
-runtime = resolve_runtime_config({
+# Blank run IDs are meaningful: source_run_id triggers Bronze monitoring
+# discovery, while silver_run_id triggers unique run-ID generation.
+parameter_values = {
     name: globals()[name]
     for name in (
         "ingestion_date", "source_run_id", "silver_run_id", "bronze_root",
         "silver_root", "quarantine_root", "validation_results_root",
     )
     if name in globals()
+}
+
+
+def optional_parameter(name: str) -> str:
+    value = parameter_values.get(name)
+    return value.strip() if isinstance(value, str) else ""
+
+
+# Resolve ingestion_date and paths with the existing runtime configuration.
+# Run IDs are resolved below because blank values have notebook-specific
+# discovery/generation semantics that differ from package development defaults.
+runtime = resolve_runtime_config({
+    name: value
+    for name, value in parameter_values.items()
+    if name not in {"source_run_id", "silver_run_id"}
+    and isinstance(value, str)
+    and value.strip()
 })
+
+MONITORING_TABLE = "monitoring_operational_ingestion_runs"
+
+
+def discover_latest_bronze_run(ingestion_date: str) -> str:
+    """Return the latest run where all operational entities succeeded."""
+    successful_runs = spark.sql(
+        f"""
+        SELECT
+            run_id,
+            MAX(completed_at) AS completed_at
+        FROM {MONITORING_TABLE}
+        WHERE ingestion_date = DATE '{ingestion_date}'
+          AND status = 'SUCCEEDED'
+        GROUP BY run_id
+        HAVING COUNT(DISTINCT entity_name) = {len(ALL_ENTITIES)}
+        ORDER BY completed_at DESC, run_id DESC
+        LIMIT 1
+        """
+    ).collect()
+    if not successful_runs:
+        raise RuntimeError(
+            "No successful complete Bronze run was found in "
+            f"{MONITORING_TABLE} for ingestion_date={ingestion_date}"
+        )
+    return str(successful_runs[0]["run_id"])
+
+
+requested_source_run_id = optional_parameter("source_run_id")
+resolved_source_run_id = (
+    requested_source_run_id
+    if requested_source_run_id
+    else discover_latest_bronze_run(runtime.ingestion_date)
+)
+
+requested_silver_run_id = optional_parameter("silver_run_id")
+resolved_silver_run_id = requested_silver_run_id or (
+    f"silver-{resolved_source_run_id}-"
+    f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')}"
+)
+
+runtime = replace(
+    runtime,
+    source_run_id=resolved_source_run_id,
+    silver_run_id=resolved_silver_run_id,
+)
+
+print(
+    f"ingestion_date={runtime.ingestion_date}, "
+    f"source_run_id={runtime.source_run_id}, "
+    f"silver_run_id={runtime.silver_run_id}"
+)
 
 def bronze_path(entity: str) -> str:
     return f"{runtime.bronze_root}/{entity}/ingestion_date={runtime.ingestion_date}/run_{runtime.source_run_id}.csv"
