@@ -1,46 +1,14 @@
 # Operational Silver Completion Status
 
-<<<<<<< ours
-## Completed evidence
-
-- The clean Fabric Bronze-to-Silver workflow completed successfully with pipeline parameterization.
-- Twelve registered Silver Delta tables were created.
-- Clean baseline: 921 rows read, 921 accepted, 0 quarantined, and no Critical, Warning, or Info findings.
-- Contract field names are reconciled in `silver-contract-schema-reconciliation.md`.
-- The 66-rule mapping authority remains `silver-validation-rule-mapping-matrix.md`; 65 rules are implemented in the registry.
-- A deterministic negative acceptance factory, expected-results manifest, flat CSV writer, local command, and local engine tests now cover all three disposition paths without changing the clean generator.
-- The complete local pytest suite contains 127 passing tests as of this increment.
-
-## Negative acceptance status
-
-Repository implementation and local validation are complete. Fabric execution remains pending. Silver is not complete until the 12 negative CSVs are uploaded to the isolated source root, Bronze and Silver run with explicit negative identifiers and isolated Silver paths, and the observed findings/dispositions match `expected-results.json`.
-
-## FSD-008 Version 1 disposition
-
-FSD-008 is deferred from Silver Version 1. Detecting whether original schedule timestamps changed after rescheduling requires an immutable prior snapshot, CDC/change-event history, or another approved historical comparison source. A single Bronze snapshot cannot prove the earlier value. No artificial single-snapshot implementation will be added to claim 66 of 66 rules, and the rule remains in the matrix as deferred.
-
-## Criteria remaining before Silver is declared complete
-
-1. Generate and upload the negative dataset without modifying `Files/source/operations`.
-2. Complete a 12-of-12 successful negative Bronze run under a distinct run ID.
-3. Complete Silver validation with explicit source and Silver run IDs and isolated acceptance output paths.
-4. Verify 921 read, 918 accepted, 3 quarantined, 6 Critical, 1 Warning, and 2 Info results.
-5. Verify the Warning record and both Info records remain accepted; verify the Job Site and both overlapping assignments are quarantined.
-6. Compare every entity/record/rule/error-code tuple with `expected-results.json` and confirm no unexpected findings.
-7. Preserve Fabric monitoring, query, and notebook-summary evidence for human review.
-8. Obtain architecture approval for the documented FSD-008 Version 1 deferral (or provide an approved historical source and implement it in a later scoped increment).
-
-No Gold/dbt work is part of this completion gate.
-=======
 ## Phase status
 
 **Phase 10 Step 3 — Operational Silver Validation: Complete.** Operational Silver validation is implemented for 65 of 66 mapped Version 1 rules across all 12 operational entities. The clean 921-row Fabric baseline passed with zero findings. The isolated negative Fabric acceptance run successfully processed the deterministic negative dataset and produced the expected results: 921 rows read, 918 accepted, 3 quarantined, 6 Critical findings, 1 Warning finding, and 2 Info findings. Quarantine and validation outputs were persisted and verified through the Fabric SQL analytics endpoint. FSD-008 remains explicitly deferred pending an approved historical-state or change-event source.
 
-## Verified completion evidence
+## Historical Phase 10 completion evidence
 
 ### Repository and local QA
 
-- The deterministic clean and negative datasets are version controlled.
+- The deterministic clean generator, negative acceptance generator, negative CSV fixtures, and expected-results manifest are version controlled.
 - `expected-results.json` defines the accepted, quarantined, and severity totals used by the Fabric acceptance gate.
 - The complete local pytest suite passed with 129 tests and 0 failures.
 - The Silver validation package implements 65 of the 66 mapped Version 1 rules.
@@ -87,4 +55,11 @@ These items are not part of the Phase 10 Step 3 completion gate:
 - Standardization of clean and negative output strategies
 
 Future implementation of FSD-008 is separately dependent on an approved historical-state or change-event architecture. Phase 11 Gold/dbt work is also separate and has not begun as part of this completion decision.
->>>>>>> theirs
+
+## Phase 11.1 live source reconciliation
+
+Phase 11.1 is complete. Read-only verification confirmed all 12 clean operational Delta sources at `Tables/silver/operations/<entity>`: 921 rows, all expected counts and column sets, and SQL endpoint exposure as `silver.<entity>` in `LH_FieldOps`.
+
+The Phase 10 acceptance evidence above records the completed historical run; it does not establish current persistence of its audit outputs. Phase 11.1 found no `Tables/validation/operational_results` path, and Spark listed zero tables in both `validation` and `validation_negative`. The SQL endpoint separately exposed `dbo.validation_negative` as a USER_TABLE; this is not the Spark namespace `validation_negative` or evidence of its contents. These findings do not invalidate clean Silver verification.
+
+See [Phase 11.1 verification record](phase-11-1-silver-source-verification.md) for the live inventory, lineage limits, existing `WH_FieldOps` Warehouse, and remaining publication-control requirements. Phase 11.2 Dimensional Design is next; no dimensional implementation has begun.

@@ -20,6 +20,10 @@ The workflow passed its final Fabric acceptance gate on August 3, 2026.
 
 The observed results matched `expected-results.json` exactly. This plan is retained as the reproducible acceptance procedure and evidence record.
 
+### Subsequent Phase 11.1 observation
+
+The completion evidence above describes the historical Phase 10 acceptance run. During the subsequent read-only Phase 11.1 inspection, Spark `SHOW TABLES IN validation_negative` returned zero tables. The SQL endpoint separately exposed `dbo.validation_negative` as a USER_TABLE; this is not the Spark namespace or confirmation that `validation_negative.operational_results` remains available. The clean default path `Tables/validation/operational_results` was also absent. See the [Phase 11.1 verification record](phase-11-1-silver-source-verification.md). The procedure and verification queries below retain the original intended acceptance destinations; current object availability must be checked before reusing them. No rerun or live repair was performed for this documentation reconciliation.
+
 ## Isolation and identifiers
 
 - The notebook's default Lakehouse must have Lakehouse schemas enabled; the three `_negative` schemas are created by the Silver notebook before it writes tables.

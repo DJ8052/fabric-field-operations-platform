@@ -56,4 +56,22 @@ This project demonstrates how an organization can build a modern analytics platf
 - Bronze and Silver remain Python/PySpark-based. Gold will use dbt for dimensional models, tests, lineage, and documentation.
 - As with Bronze, reusable Silver code is built as a Python wheel and installed in the Fabric Environment; notebooks import that package and remain orchestration-focused.
 
+### Phase 11 — Warehouse & Analytics Engineering
+
+Phase 11.1 — Discovery & Requirements Reconciliation is **COMPLETE**. The user-reported live verification confirmed 12 readable operational Delta sources, 921 rows, matching expected counts and column sets, and all 12 SQL endpoint objects as `silver.<entity>`. Weather Silver contained 4,032 rows; Bronze monitoring contained 180 rows. Current validation-results persistence findings and lineage limits are recorded separately from historical Phase 10 acceptance evidence.
+
+The verified environment is workspace `WS_FieldOps_Dev`, environment `ENV_FieldOps_Dev`, Lakehouse and SQL analytics endpoint `LH_FieldOps`. Warehouse `WH_FieldOps` already exists.
+
+| Step | Scope | Status |
+| --- | --- | --- |
+| 11.1 | Discovery & Requirements Reconciliation | COMPLETE |
+| 11.2 | Dimensional Design | NEXT |
+| 11.3 | Warehouse Design / Verification / Configuration of existing `WH_FieldOps` | Planned |
+| 11.4 | Silver-to-Warehouse Integration | Planned |
+| 11.5 | dbt Gold Implementation | Planned |
+| 11.6 | dbt Tests, Lineage & Documentation | Planned |
+| 11.7 | Reconciliation & Deterministic Acceptance | Planned |
+
+See the [Phase 11.1 Silver source verification record](docs/phase-11-1-silver-source-verification.md). Candidate dimensions and facts remain design inputs; Warehouse DDL and dbt models have not been implemented.
+
 🚧 In Development

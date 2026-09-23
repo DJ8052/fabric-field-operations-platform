@@ -17,7 +17,7 @@ The reconciled contract contains 66 validation rules. Every rule appears exactly
 - `tests/test_operational_data_generator.py` and `tests/test_ingest.py`: schema, dependency, scenario, lineage, reproducibility, and header assertions.
 - `src/operational_data_generator/config.py`, `config/locations.yml`, and existing operational design documents.
 
-No checked-in generated CSV fixture is present. Generator keys are direct header evidence because `writers.py` uses them as `csv.DictWriter` field names.
+The deterministic clean generator and the negative acceptance CSV fixtures under `data/negative_acceptance/operations/` are checked in. Generator keys are direct header evidence because `writers.py` uses them as `csv.DictWriter` field names.
 
 ## Schema audit
 
@@ -260,4 +260,12 @@ The Silver package is distributed as a `.whl` (Python wheel): a versioned, insta
 
 `src/operational_silver_validation/validation_engine.py` is the single high-level engine. `validate_operational_entities` executes all 12 entities, while `validate_master_entities` remains as the backward-compatible first-increment API. The engine invokes entity and relationship checks in deterministic order, aggregates results, separates accepted and quarantined rows, retains Warning and Info results and multiple violations, and produces typed entity and overall summaries. Entity-specific findings remain in `entity_validations.py`; relationship-specific findings remain in `relationship_validations.py`. `__init__.py` contains public exports only. The notebook contains orchestration only and has no rule metadata or validation calculations. It reads Bronze CSV values without schema inference to preserve source text and overwrites accepted entity output even when no rows are accepted, preventing stale accepted data.
 
-Notebook/pipeline runtime values are resolved by `runtime_config.py`. Fabric may supply lowercase `ingestion_date`, `source_run_id`, `silver_run_id`, and path parameters. Supplied values take precedence. Development execution defaults to today's ISO date and source run `dev-local`; the default Silver run ID is deterministically derived from those values. No historical production run is permanently selected.
+Package runtime defaults are resolved by `runtime_config.py`: today's ISO date, source run `dev-local`, and a deterministically derived Silver run ID. The notebook handles run IDs separately: explicit nonblank IDs take precedence; otherwise it discovers the latest complete successful Bronze run for the ingestion date and generates a unique Silver run ID. No historical production run is permanently selected.
+
+## Phase 11.1 deployed-source reconciliation
+
+Read-only live verification confirmed all 12 clean operational sources at `Tables/silver/operations/<entity>`, with 921 total rows and every expected count and column set matching. The `LH_FieldOps` SQL analytics endpoint independently exposed all 12 as `silver.<entity>`; clean SQL visibility is verified. These SQL names do not establish identical Spark registered names. The repository's string-preserving implementation remains distinct from deployed type/nullability evidence, which was not supplied in the verification summary.
+
+`Tables/validation/operational_results` is the repository runtime default, not a verified existing live output. The checked `Tables/validation` directory contained only `schema.json.gz`; the child path was absent, and Spark listed zero tables in `validation` and `validation_negative`. SQL separately exposed the USER_TABLE `dbo.validation_negative`; no equivalence to a Spark namespace or inference about its contents is established. This source-readiness finding does not invalidate clean Silver verification or rewrite historical Phase 10 acceptance results.
+
+See [Phase 11.1 verification record](phase-11-1-silver-source-verification.md) for current source evidence and the Phase 11.4/11.7 post-quarantine referential-integrity requirement. Phase 11.2 Dimensional Design remains next.
