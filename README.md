@@ -65,13 +65,13 @@ The verified environment is workspace `WS_FieldOps_Dev`, environment `ENV_FieldO
 | Step | Scope | Status |
 | --- | --- | --- |
 | 11.1 | Discovery & Requirements Reconciliation | COMPLETE |
-| 11.2 | Dimensional Design | NEXT |
-| 11.3 | Warehouse Design / Verification / Configuration of existing `WH_FieldOps` | Planned |
+| 11.2 | Dimensional Design | COMPLETE |
+| 11.3 | Warehouse Design / Verification / Configuration of existing `WH_FieldOps` | NEXT |
 | 11.4 | Silver-to-Warehouse Integration | Planned |
 | 11.5 | dbt Gold Implementation | Planned |
 | 11.6 | dbt Tests, Lineage & Documentation | Planned |
 | 11.7 | Reconciliation & Deterministic Acceptance | Planned |
 
-See the [Phase 11.1 Silver source verification record](docs/phase-11-1-silver-source-verification.md). Candidate dimensions and facts remain design inputs; Warehouse DDL and dbt models have not been implemented.
+See the [Phase 11.1 Silver source verification record](docs/phase-11-1-silver-source-verification.md) and the [Phase 11.2 dimensional design](docs/phase-11-2-dimensional-design.md). Phase 11.2 defines three base facts, eleven dimensions, persistent integer surrogate keys, Type 1 entity dimensions, a static date dimension, and publication controls that reject invalid candidate batches while preserving the prior good state. Safety thresholds remain a separate rule input. Physical platform verification, source publication dependencies, and risk-engine policies remain later work; Warehouse DDL and dbt models have not been implemented.
 
 🚧 In Development
